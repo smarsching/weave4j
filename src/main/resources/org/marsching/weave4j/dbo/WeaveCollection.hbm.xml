@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC
+        "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+        "http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+
+<hibernate-mapping package="org.marsching.weave4j.dbo">
+
+  <class name="WeaveCollection" table="weave_collection">
+    <id name="id" column="collection_id">
+      <generator class="org.hibernate.id.enhanced.SequenceStyleGenerator"/>
+    </id>
+    <natural-id mutable="false">
+      <many-to-one name="user" class="WeaveUser" column="user_id" index="user_id_idx"/>
+      <property name="name"/>
+    </natural-id>
+    <set name="weaveBasicObjects" inverse="true">
+      <key column="collection_id" not-null="true"/>
+      <one-to-many class="WeaveBasicObject"/>
+    </set>
+  </class>
+
+</hibernate-mapping>
+        
