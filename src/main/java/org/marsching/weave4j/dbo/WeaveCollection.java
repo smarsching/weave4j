@@ -4,47 +4,89 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * Created by IntelliJ IDEA.
- * WeaveUser: termi
- * Date: 05.02.2010
- * Time: 02:05:16
- * To change this template use File | Settings | File Templates.
+ * Weave collection. A collection aggregates several basic objects. Each collection is assigned
+ * to a user. There is always only one collection of a given type per user.
+ *
+ * @author Sebastian Marsching
  */
 public class WeaveCollection {
-    private String name;
+    private Long artificialId;
 
-    private Long id;
+    private String type;
     private WeaveUser user;
+    
     private Set<WeaveBasicObject> weaveBasicObjects = new HashSet<WeaveBasicObject>();
 
-    public String getName() {
-        return name;
+    /**
+     * Returns the type of this collection. The type identifies the type of the WBOs that are stored in this collection.
+     *
+     * @return type of this collection
+     */
+    public String getType() {
+        return type;
     }
 
-    public void setName(String name) {
-        this.name = name;
+    /**
+     * Sets the type of this collection.
+     *
+     * @param type type of this collection
+     */
+    public void setType(String type) {
+        this.type = type;
     }
 
-    public Long getId() {
-        return id;
+    /**
+     * Returns the artificial id. The artificial id is only used to identify the object within the database.
+     *
+     * @return artificial id
+     */
+    public Long getArtificialId() {
+        return artificialId;
     }
 
-    private void setId(Long id) {
-        this.id = id;
+    /**
+     * Sets the artificial id. The artificial id should never be set by user code. It is automatically assigned
+     * by Hibernate, when the object is stored within the database.
+     *
+     * @param artificialId artificial unique identifier
+     */
+    private void setArtificialId(Long artificialId) {
+        this.artificialId = artificialId;
     }
 
+    /**
+     * Returns the user this collection is assigned to.
+     *
+     * @return user this collection is assigned to
+     */
     public WeaveUser getUser() {
         return user;
     }
 
+    /**
+     * Sets the user this collection is assigned to.
+     *
+     * @param user user this collection shall be assigned to
+     */
     public void setUser(WeaveUser user) {
         this.user = user;
     }
 
+    /**
+     * Returns all WBOs that are stored within this collection.
+     *
+     * @return WBOs stored within this collection
+     */
     public Set<WeaveBasicObject> getWeaveBasicObjects() {
         return weaveBasicObjects;
     }
 
+    /**
+     * Sets the WBOs stored in this collection. This method should not be used by user code, because changes to
+     * the collection will not be persisted to the database.
+     *
+     * @param weaveBasicObjects WBOs stored in this collection
+     */
     public void setWeaveBasicObjects(Set<WeaveBasicObject> weaveBasicObjects) {
         this.weaveBasicObjects = weaveBasicObjects;
     }

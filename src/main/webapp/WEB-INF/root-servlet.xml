@@ -2,14 +2,18 @@
 <beans
         xmlns="http://www.springframework.org/schema/beans"
         xmlns:aop="http://www.springframework.org/schema/aop"
+        xmlns:context="http://www.springframework.org/schema/context"
         xmlns:mvc="http://www.springframework.org/schema/mvc"
         xmlns:util="http://www.springframework.org/schema/util"
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:schemaLocation="
     http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
     http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-3.0.xsd
+    http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-3.0.xsd
     http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc-3.0.xsd
   ">
+
+  <context:property-override location="WEB-INF/local-config.properties" />
 
   <bean name="/*" class="org.marsching.weave4j.web.WeaveHttpRequestHandler">
     <property name="userDAO" ref="userDAO" />
@@ -17,16 +21,21 @@
     <property name="platformTransactionManager" ref="platformTransactionManager" />
   </bean>
 
-  <bean id="myDataSource" class="org.apache.commons.dbcp.BasicDataSource" destroy-method="close">
+  <bean name="jdbcUrlProvider" class="org.marsching.weave4j.web.JdbcUrlProvider">
+    <property name="databaseLocation" value="WEB-INF/weave4j-database" />
+  </bean>
+
+  <bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource" destroy-method="close">
     <property name="driverClassName" value="org.hsqldb.jdbcDriver"/>
-    <property name="url" value="jdbc:hsqldb:file:/var/lib/weave4j/weave4j_db"/>
+    <property name="url">
+      <bean factory-bean="jdbcUrlProvider" factory-method="getJdbcUrl"/>
+    </property>
     <property name="username" value="sa"/>
     <property name="password" value=""/>
   </bean>
 
-  <bean name="sessionFactory" class="org.springframework.orm.hibernate3.LocalSessionFactoryBean
-">
-    <property name="dataSource" ref="myDataSource"/>
+  <bean name="sessionFactory" class="org.springframework.orm.hibernate3.LocalSessionFactoryBean">
+    <property name="dataSource" ref="dataSource"/>
     <property name="configLocations">
       <list>
         <value>classpath:hibernate.cfg.xml</value>
@@ -39,17 +48,17 @@
         hibernate.show_sql=false
       </value>
     </property>
-</bean>
+  </bean>
 
   <bean name="platformTransactionManager" class="org.springframework.orm.hibernate3.HibernateTransactionManager">
     <property name="sessionFactory" ref="sessionFactory"/>
   </bean>
 
-  <bean name="userDAO" class="org.marsching.weave4j.org.marsching.weave4j.dbo.WeaveUserDAOImpl">
+  <bean name="userDAO" class="org.marsching.weave4j.dbo.WeaveUserDAOImpl">
     <property name="sessionFactory" ref="sessionFactory"/>
   </bean>
 
-  <bean name="storageDAO" class="org.marsching.weave4j.org.marsching.weave4j.dbo.WeaveStorageDAOImpl">
+  <bean name="storageDAO" class="org.marsching.weave4j.dbo.WeaveStorageDAOImpl">
     <property name="sessionFactory" ref="sessionFactory"/>
   </bean>
 

@@ -16,25 +16,54 @@ import org.codehaus.jackson.node.{TextNode, ArrayNode, ObjectNode}
 import org.codehaus.jackson.{JsonParseException, JsonProcessingException, JsonNode}
 
 /**
- * Created by IntelliJ IDEA.
- * User: termi
- * Date: 14.03.2010
- * Time: 13:33:02
- * To change this template use File | Settings | File Templates.
+ * Handler for Weave HTTP requests.
+ *
+ * @author Sebastian Marsching
  */
 
 class WeaveHttpRequestHandler extends HttpRequestHandler {
 
+  /**
+   * Weave response header for current timestamp.
+   */
   protected val HeaderTimestamp = "X-Weave-Timestamp"
+
+  /**
+   * Weave request header for unmodified since precondition.
+   */
   protected val HeaderIfUnmodifiedSince = "X-If-Unmodified-Since"
+
+  /**
+   * Weave request header for confirm delete precondition.
+   */
   protected val HeaderConfirmDelete = "X-Confirm-Delete"
 
+  /**
+   * DAO fo accessing user objects.
+   */
   protected var userDAO: WeaveUserDAO = null
+
+  /**
+   * DAO for accessing collections and WBOs.
+   */
   protected var storageDAO: WeaveStorageDAO = null
+
+  /**
+   * Spring platform transaction manager for managing database transactions.
+   */
   protected var platformTransactionManager: PlatformTransactionManager = null
 
+  /**
+   * Logger for this class.
+   */
   protected val logger = LoggerFactory.getLogger(this.getClass)
 
+  /**
+   * Main entry method for request handling.
+   *
+   * @param request HTTP request
+   * @param response HTTP response
+   */
   override def handleRequest(request: HttpServletRequest, response: HttpServletResponse) {
     val timestamp = WeaveTimestamps.currentTime
     response.addHeader(HeaderTimestamp, timestamp.bigDecimal.toPlainString);
@@ -44,7 +73,7 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
     try {
       val PathMatcher(apiName, version, command) = pathInfo
       if (version != "1" && version != "1.0") {
-        logger.info("Version mismatch: Got version " + version)
+        logger.debug("Version mismatch: Got version " + version)
         WeaveErrors.errorUnsupportedVersion(response)
         return
       }
@@ -55,7 +84,7 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
       }
     } catch {
       case e: MatchError => {
-        logger.info("Invalid path on first match: Received path was " + pathInfo)
+        logger.debug("Invalid path on first match: Received path was " + pathInfo)
         WeaveErrors.errorBadProtocol(response)
       }
       case e: AbortRequestHandlingException => {
@@ -64,9 +93,24 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
     }
   }
 
+  /**
+   * Exception that will be caught and ignored by the main request handling method.
+   * This exception is used by the request processing code in order to be able to abort
+   * the request processing at any point.
+   */
   protected class AbortRequestHandlingException extends Exception;
 
-  private def tryLoginUser(request: HttpServletRequest, response: HttpServletResponse, pathUsername: String): WeaveUser = {
+  /**
+   * Try to authenticate a user. Will send an authorization required error to the browser, if authentiation fails.
+   *
+   * @param request HTTP request
+   * @param response HTTP response
+   * @param pathUsername username from the request path
+   * @return the user object representing the authenticated user
+   *
+   * @throws AbortRequestHandlingException if user cannot be authenticated
+   */
+  protected def tryLoginUser(request: HttpServletRequest, response: HttpServletResponse, pathUsername: String): WeaveUser = {
     val authHeader = request.getHeader("Authorization")
     if (authHeader == null) {
       WeaveErrors.errorHttpUnauthorized(response)
@@ -105,14 +149,33 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
     }
   }
 
+  /**
+   * Performs an action within a read/write database transaction.
+   *
+   * @param f action to perform within transaction
+   * @return result of <code>f</code>
+   */
   protected def withReadWriteTransaction[T](f: => T): T = {
     withTransaction(false)(f)
   }
 
+  /**
+   * Performs an action within a read-only database transaction.
+   *
+   * @param f action to perform within transaction
+   * @return result of <code>f</code>
+   */
   protected def withReadOnlyTransaction[T](f: => T): T = {
     withTransaction(true)(f)
   }
 
+  /**
+   * Performs an action within a database transaction.
+   *
+   * @param readOnly if set to <code>true</code>, a read-only transaction will be started
+   * @param f action to perform within transaction
+   * @return result of <code>f</code>
+   */
   protected def withTransaction[T](readOnly: Boolean)(f: => T): T = {
     val transactionDefinition = new DefaultTransactionDefinition()
     transactionDefinition.setPropagationBehavior(TransactionDefinition.PROPAGATION_NEVER)
@@ -130,18 +193,36 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
     }
   }
 
+  /**
+   * Sets the DAO used to access user objects.
+   *
+   * @param userDAO user DAO
+   */
   def setUserDAO(userDAO: WeaveUserDAO) = {
     this.userDAO = userDAO;
   }
 
+  /**
+   * Sets the DAO used to access collections and WBOs.
+   *
+   * @param storageDAO storage DAO
+   */
   def setStorageDAO(storageDAO: WeaveStorageDAO) = {
     this.storageDAO = storageDAO;
   }
 
+  /**
+   * Sets the Spring platform transaction manager, used to manager transactions.
+   *
+   * @param platformTransactionManager transaction manager
+   */
   def setPlatformTransactionManager(platformTransactionManager: PlatformTransactionManager) = {
     this.platformTransactionManager = platformTransactionManager
   }
 
+  /**
+   * Handles storage HTTP requests.
+   */
   private object StorageRequestHandler {
 
     def handleRequest(request: HttpServletRequest, response: HttpServletResponse, path: String, timestamp: BigDecimal) {
@@ -170,9 +251,9 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
             val collections = user.getCollections()
             val map = JSONHelper.createJSONObjectNode
             for (collection <- user.getCollections()) {
-              val name = collection.getName()
-              val lastModified = storageDAO.getLastModified(user, name)
-              map.put(name, lastModified)
+              val typeName = collection.getType()
+              val lastModified = storageDAO.getLastModified(user, typeName)
+              map.put(typeName, lastModified)
             }
             JSONHelper.writeJSON(request, response, map)
           }
@@ -181,9 +262,9 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
             val collections = user.getCollections()
             val map = JSONHelper.createJSONObjectNode
             for (collection <- user.getCollections()) {
-              val name = collection.getName()
-              val count = storageDAO.getWBOCount(user, name)
-              map.put(name, count)
+              val typeName = collection.getType()
+              val count = storageDAO.getWBOCount(user, typeName)
+              map.put(typeName, count)
             }
             JSONHelper.writeJSON(request, response, map)
           }
@@ -604,6 +685,9 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
 
   }
 
+  /**
+   * Handles user HTTP requests.
+   */
   private object UserRequestHandler {
 
     def handleRequest(request: HttpServletRequest, response: HttpServletResponse, path: String, timestamp: BigDecimal) {
@@ -729,23 +813,16 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
 
   }
 
+  /**
+   * Handles miscellaneous HTTP requests.
+   */
   private object MiscRequestHandler {
 
     def handleRequest(request: HttpServletRequest, response: HttpServletResponse, path: String, timestamp: BigDecimal) {
       path match {
         case "/captcha_html" => {
           response.setContentType("text/html")
-          /*
-          response.getWriter().print("""<body><div style="background-color: system;"><script type="text/javascript" src="https://api-secure.recaptcha.net/challenge?k=6LeNAAgAAAAAAISdzC4X00iFgndY_n7PaKEWPpyC"></script>
-
-	<noscript>
-  		<iframe src="https://api-secure.recaptcha.net/noscript?k=6LeNAAgAAAAAAISdzC4X00iFgndY_n7PaKEWPpyC" height="300" width="500" frameborder="0"></iframe><br/>
-  		<textarea name="recaptcha_challenge_field" rows="3" cols="40"></textarea>
-  		<input type="hidden" name="recaptcha_response_field" value="manual_challenge"/>
-	</noscript></div></body>""");
-	*/
           response.getWriter().print("""<body>No captcha required.<input type="hidden" name="recaptcha_challenge_field" id="recaptcha_challenge_field" value="nocaptcha"><input type="hidden" name="recaptcha_response_field" id="recaptcha_response_field" value="nocaptcha"></body>""");
-          //JSONHelper.writeJSON(request, response, new TextNode("No captcha"))
         }
 
         case _ => {

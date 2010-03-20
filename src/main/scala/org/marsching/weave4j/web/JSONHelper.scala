@@ -11,30 +11,55 @@ import org.codehaus.jackson.node.{TextNode, ObjectNode, ArrayNode}
 import org.slf4j.LoggerFactory
 
 /**
- * Created by IntelliJ IDEA.
- * User: termi
- * Date: 14.03.2010
- * Time: 17:40:11
- * To change this template use File | Settings | File Templates.
+ * Utility functions for writing JSON to a HTTP response and reading JSON from HTTP requests.
+ *
+ * @author Sebastian Marsching 
  */
 
 object JSONHelper {
+  /**
+   * Content type for JSON
+   */
   val TypeApplicationJson = "application/json"
+
+  /**
+   * Special "newlines" JSON list content type used by Weave
+   */
   val TypeApplicationNewlines = "application/newlines"
+
+  /**
+   * Special "whoisi" JSON list content type used by Weave
+   */
   val TypeApplicationWhoisi = "application/whoisi"
 
+  /**
+   * Logger for this class.
+   */
   protected val logger = LoggerFactory.getLogger(this.getClass)
 
   private val objectMapper = new ObjectMapper()
 
+  /**
+   * Creates a root node of an empty JSON tree.
+   */
   def createJSONObjectNode(): ObjectNode = {
     objectMapper.createObjectNode()
   }
 
+  /**
+   * Creates an empty JSON array.
+   */
   def createJSONArrayNode(): ArrayNode = {
     objectMapper.createArrayNode()
   }
 
+  /**
+   * Writes a JSON node to a HTTP response.
+   *
+   * @param request HTTP request
+   * @param response HTTP resonse
+   * @param node JSON node to be serialized
+   */
   def writeJSON(request: HttpServletRequest, response: HttpServletResponse, node: JsonNode) {
     response.setContentType("utf-8")
 
@@ -80,26 +105,61 @@ object JSONHelper {
     }
   }
 
+  /**
+   * Writes a big decimal to a HTTP response as JSON.
+   *
+   * @param request HTTP request
+   * @param response HTTP resonse
+   * @param decimal decimal to be serialized
+   */
   def writeJSON(request: HttpServletRequest, response: HttpServletResponse, decimal: BigDecimal) {
     response.setContentType(TypeApplicationJson)
     response.setCharacterEncoding("utf-8")
     response.getWriter().print(decimal.bigDecimal.toPlainString())
   }
 
+  /**
+   * Writes an integer to a HTTP response as JSON.
+   *
+   * @param request HTTP request
+   * @param response HTTP resonse
+   * @param number integer to be serialized
+   */
   def writeJSON(request: HttpServletRequest, response: HttpServletResponse, number: Int) {
     response.setContentType(TypeApplicationJson)
     response.setCharacterEncoding("utf-8")
     response.getWriter().print(number)
   }
 
+  /**
+   * Writes a string to a HTTP response as JSON.
+   *
+   * @param request HTTP request
+   * @param response HTTP resonse
+   * @param str string to be serialized
+   */
+
   def writeJSON(request: HttpServletRequest, response: HttpServletResponse, str: String) {
     writeJSON(request, response, new TextNode(str))
   }
 
+  /**
+   * Reads JSON from the body of an HTTP request.
+   *
+   * @param request HTTP request
+   * @return JSON node representing the body of the request
+   * @throws org.codehaus.jackson.JacksonProcessingException if an error occurs while deserializing the JSON  
+   */
   def readJSON(request: HttpServletRequest): JsonNode = {
     return objectMapper.readTree(request.getInputStream())
   }
 
+  /**
+   * Converts the last 4 bytes of a long to an array of bytes.
+   *
+   * @param longValue number to be converted
+   * @return array with exactly 4 bytes
+   */
   protected def longTo4Bytes(longValue: Long): Array[Byte] = {
       Assert.isTrue(longValue < 4294967296L, "Long value has to be smaller than 4294967296 to be stored in 4 bytes.")
       val bytes = new Array[Byte](4)
@@ -110,6 +170,11 @@ object JSONHelper {
       return bytes
   }
 
+  /**
+   * Creates a JSON tree from a WBO.
+   *
+   * @param wbo Weave Basic Object to be serialized
+   */
   def weaveBasicObjectToJSON(wbo: WeaveBasicObject): JsonNode = {
     val root = createJSONObjectNode
     root.put("id", wbo.getId())

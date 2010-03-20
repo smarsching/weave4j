@@ -7,9 +7,12 @@
 
   <session-factory>
 
-    <mapping resource="org/marsching/weave4j/org.marsching.weave4j.dbo/WeaveBasicObject.hbm.xml"/>
-    <mapping resource="org/marsching/weave4j/org.marsching.weave4j.dbo/WeaveCollection.hbm.xml"/>
-    <mapping resource="org/marsching/weave4j/org.marsching.weave4j.dbo/WeaveUser.hbm.xml"/>
+    <property name="hbm2ddl.auto">update</property>
+    <property name="show_sql">false</property>
+
+    <mapping resource="org/marsching/weave4j/dbo/WeaveBasicObject.hbm.xml"/>
+    <mapping resource="org/marsching/weave4j/dbo/WeaveCollection.hbm.xml"/>
+    <mapping resource="org/marsching/weave4j/dbo/WeaveUser.hbm.xml"/>
 
   </session-factory>
 

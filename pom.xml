@@ -5,7 +5,7 @@
 
   <artifactId>weave4j</artifactId>
   <groupId>org.marsching.weave4j</groupId>
-  <version>1.0</version>
+  <version>1.0.0</version>
 
   <modelVersion>4.0.0</modelVersion>
 
@@ -17,13 +17,6 @@
   </properties>
 
   <dependencies>
-
-    <!-- Web layer depends on data abstraction layer -->
-    <dependency>
-      <groupId>org.marsching.weave4j</groupId>
-      <artifactId>weave4j-dbo</artifactId>
-      <version>1.0</version>
-    </dependency>
 
     <!-- Because this is a web app, we also have a dependency on the servlet api. -->
     <dependency>

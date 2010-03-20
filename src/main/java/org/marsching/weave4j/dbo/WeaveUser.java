@@ -4,11 +4,9 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * Created by IntelliJ IDEA.
- * WeaveUser: termi
- * Date: 24.01.2010
- * Time: 13:41:56
- * To change this template use File | Settings | File Templates.
+ * Weave user.
+ *
+ * @author Sebastian Marsching
  */
 public class WeaveUser {
 
@@ -16,45 +14,98 @@ public class WeaveUser {
     private String password;
     private String eMail;
 
-    private Long id;
+    private Long artificialId;
+
     private Set<WeaveCollection> collections = new HashSet<WeaveCollection>();
 
-    public Long getId() {
-        return id;
+    /**
+     * Returns the artificial id. The artificial id is only used to identify the object within the database.
+     *
+     * @return artificial id
+     */
+    public Long getArtificialId() {
+        return artificialId;
     }
 
-    private void setId(Long id) {
-        this.id = id;
+    /**
+     * Sets the artificial id. The artificial id should never be set by user code. It is automatically assigned
+     * by Hibernate, when the object is stored within the database.
+     *
+     * @param artificialId artificial unique identifier
+     */
+    private void setArtificialId(Long artificialId) {
+        this.artificialId = artificialId;
     }
 
+    /**
+     * Returns the username of this user.
+     *
+     * @return username
+     */
     public String getUsername() {
         return username;
     }
 
+    /**
+     * Sets the username of this user. The username has to be unique.
+     *
+     * @param username username for this user
+     */
     public void setUsername(String username) {
         this.username = username;
     }
 
+    /**
+     * Returns the (encrypted) password for this user.
+     *
+     * @return user password
+     */
     public String getPassword() {
         return password;
     }
 
+    /**
+     * Sets the password for this user. The password passed to this function should be encrypted.
+     *
+     * @param password (encrypted) password
+     */
     public void setPassword(String password) {
         this.password = password;
     }
 
+    /**
+     * Returns the e-mail address of the user.
+     *
+     * @return e-mail address
+     */
     public String getEMail() {
         return eMail;
     }
 
+    /**
+     * Sets the e-mail address of the user.
+     *
+     * @param eMail e-mail address
+     */
     public void setEMail(String eMail) {
         this.eMail = eMail;
     }
 
+    /**
+     * Returns the collections that exist for this user.
+     *
+     * @return collections for this user
+     */
     public Set<WeaveCollection> getCollections() {
         return collections;
     }
 
+    /**
+     * Sets the collections for this user. This method should never be called by user code, because changes will
+     * not be persisted to the database.
+     *
+     * @param collections collections for this user
+     */
     public void setCollections(Set<WeaveCollection> collections) {
         this.collections = collections;
     }

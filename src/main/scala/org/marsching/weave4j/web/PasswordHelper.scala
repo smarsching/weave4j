@@ -5,19 +5,26 @@ import org.apache.commons.codec.binary.Base64
 import org.slf4j.LoggerFactory
 
 /**
- * Created by IntelliJ IDEA.
- * User: termi
- * Date: 20.03.2010
- * Time: 16:55:47
- * To change this template use File | Settings | File Templates.
+ * Utility functions for encrypting and validating password.
+ *
+ * @author Sebastian Marsching
  */
 
 object PasswordHelper {
   private val SaltLength = 4
   private val SSHAPrefix = "{SSHA}"
 
+  /**
+   * Logger for this class
+   */
   protected val logger = LoggerFactory.getLogger(this.getClass)
 
+  /**
+   * Encrypts a password using a salted SHA1.
+   *
+   * @param password plain password
+   * @return password hash
+   */
   def cryptPasswordSSHA(password: String): String = {
     val random = new Random
     val salt = new Array[Byte](SaltLength)
@@ -33,6 +40,14 @@ object PasswordHelper {
     return SSHAPrefix + new String(Base64.encodeBase64(Array.concat(digestBytes, salt)), "utf-8")
   }
 
+  /**
+   * Compares a plain password with a hash.
+   *
+   * @param password plain password
+   * @param hash password hash
+   *
+   * @return <code>true</code> if hash of plain password matches specified hash, <code>false</code> otherwise
+   */
   def validatePasswordSSHA(password: String, hash: String): Boolean = {
     if (!hash.startsWith(SSHAPrefix)) {
       return false

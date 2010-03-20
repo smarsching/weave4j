@@ -5,11 +5,9 @@ import org.hibernate.SessionFactory;
 import org.marsching.weave4j.dbo.exception.InvalidUserException;
 
 /**
- * Created by IntelliJ IDEA.
- * WeaveUser: termi
- * Date: 24.01.2010
- * Time: 16:43:06
- * To change this template use File | Settings | File Templates.
+ * Implementation of {@link org.marsching.weave4j.dbo.WeaveUserDAO}.
+ *
+ * @author Sebastian Marsching
  */
 public class WeaveUserDAOImpl implements WeaveUserDAO {
     private SessionFactory sessionFactory;
@@ -56,6 +54,11 @@ public class WeaveUserDAOImpl implements WeaveUserDAO {
         sessionFactory.getCurrentSession().update(user);
     }
 
+    /**
+     * Sets the Hibernate session factory used by this DAO.
+     *
+     * @param sessionFactory Hibernate session factory
+     */
     public void setSessionFactory(SessionFactory sessionFactory) {
         this.sessionFactory = sessionFactory;
     } 

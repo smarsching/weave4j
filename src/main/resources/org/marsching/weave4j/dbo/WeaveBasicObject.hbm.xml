@@ -11,13 +11,13 @@
     </id>
 
     <natural-id mutable="false">
-      <many-to-one name="collection" class="WeaveCollection" column="collection_id"/>
-      <property name="id" column="wbo_id" length="64"/>
+      <many-to-one name="collection" class="WeaveCollection" column="collection_id" not-null="true"/>
+      <property name="id" column="wbo_id" length="64" not-null="true"/>
     </natural-id>
 
     <property name="parentId" length="64" column="parent_id" index="parent_id_idx"/>
     <property name="predecessorId" length="64" column="predecessor_id" index="predecessor_id_idx"/>
-    <property name="modified"/>
+    <property name="modified" not-null="true"/>
     <property name="sortIndex"/>
     <property name="payload" type="text"/>
   </class>

@@ -6,12 +6,12 @@
 <hibernate-mapping package="org.marsching.weave4j.dbo">
 
   <class name="WeaveCollection" table="weave_collection">
-    <id name="id" column="collection_id">
+    <id name="artificialId" column="collection_id">
       <generator class="org.hibernate.id.enhanced.SequenceStyleGenerator"/>
     </id>
     <natural-id mutable="false">
       <many-to-one name="user" class="WeaveUser" column="user_id" index="user_id_idx"/>
-      <property name="name"/>
+      <property name="type"/>
     </natural-id>
     <set name="weaveBasicObjects" inverse="true">
       <key column="collection_id" not-null="true"/>

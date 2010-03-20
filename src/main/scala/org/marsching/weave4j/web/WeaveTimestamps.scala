@@ -1,16 +1,21 @@
 package org.marsching.weave4j.web
 
 /**
- * Created by IntelliJ IDEA.
- * User: termi
- * Date: 14.03.2010
- * Time: 14:33:20
- * To change this template use File | Settings | File Templates.
+ * Utility functions for Weave timestamps.
+ *
+ * @author Sebastian Marsching
  */
 
 object WeaveTimestamps {
+
+  /**
+   * Returns the current time in seconds since 01/01/1970.
+   *
+   * @return current timestamp
+   */
   def currentTime: BigDecimal = {
     val systemTimeInCentiSeconds = System.currentTimeMillis / 10
     return BigDecimal(systemTimeInCentiSeconds) / BigDecimal(100)
   }
+  
 }
