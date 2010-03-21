@@ -346,7 +346,15 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
                 }
               }
 
-              val wbos = storageDAO.getWBOsFromCollection(user, collectionName, java.util.Arrays.asList(ids: _*), predecessorId, parentId, modifiedBefore.bigDecimal, modifiedSince.bigDecimal, indexAbove, indexBelow, limit, offset, sortOrder)
+              val idsList = {
+                if (ids == null) {
+                  null
+                } else {
+                  java.util.Arrays.asList(ids: _*)
+                }
+              }
+
+              val wbos = storageDAO.getWBOsFromCollection(user, collectionName, idsList, predecessorId, parentId, modifiedBefore.bigDecimal, modifiedSince.bigDecimal, indexAbove, indexBelow, limit, offset, sortOrder)
               if (wbos.size() == 0) {
                 WeaveErrors.errorHttpNotFound(response)
                 return
