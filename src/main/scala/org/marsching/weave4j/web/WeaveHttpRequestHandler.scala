@@ -720,7 +720,6 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
               }
 
               case "node/weave" => {
-                //WeaveErrors.errorUnsupportedFunction(response)
                 response.setStatus(HttpServletResponse.SC_NOT_FOUND)
                 JSONHelper.writeJSON(request, response, new TextNode("No location"))
               }
