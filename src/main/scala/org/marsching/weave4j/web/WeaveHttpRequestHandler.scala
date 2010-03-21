@@ -480,7 +480,7 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
                 }
               }
 
-              val wbos = storageDAO.getWBOsFromCollection(user, collectionName, idsList, predecessorId, parentId, modifiedBeforeBigDecimal, modifiedSinceBigDecimal, indexAbove, indexBelow, limit, offset, sortOrder)
+              val wbos = storageDAO.getWBOsFromCollection(user, collectionName, idsList, null, parentId, modifiedBeforeBigDecimal, modifiedSinceBigDecimal, null, null, limit, offset, sortOrder)
               for (wbo <- wbos) {
                 storageDAO.deleteWBO(wbo)
               }
