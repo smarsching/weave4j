@@ -3,6 +3,7 @@ package org.marsching.weave4j.web
 import java.security.MessageDigest
 import org.apache.commons.codec.binary.Base64
 import org.slf4j.LoggerFactory
+import scala.util.Random
 
 /**
  * Utility functions for encrypting and validating password.
