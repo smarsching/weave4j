@@ -353,8 +353,22 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
                   java.util.Arrays.asList(ids: _*)
                 }
               }
+              val modifiedSinceBigDecimal = {
+                if (modifiedSince == null) {
+                  null
+                } else {
+                  modifiedSince.bigDecimal
+                }
+              }
+              val modifiedBeforeBigDecimal = {
+                if (modifiedBefore == null) {
+                  null
+                } else {
+                  modifiedBefore.bigDecimal
+                }
+              }
 
-              val wbos = storageDAO.getWBOsFromCollection(user, collectionName, idsList, predecessorId, parentId, modifiedBefore.bigDecimal, modifiedSince.bigDecimal, indexAbove, indexBelow, limit, offset, sortOrder)
+              val wbos = storageDAO.getWBOsFromCollection(user, collectionName, idsList, predecessorId, parentId, modifiedBeforeBigDecimal, modifiedSinceBigDecimal, indexAbove, indexBelow, limit, offset, sortOrder)
               if (wbos.size() == 0) {
                 WeaveErrors.errorHttpNotFound(response)
                 return
@@ -443,7 +457,30 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
                 WeaveErrors.errorHttpPreConditionFailed(response)
                 return
               }
-              val wbos = storageDAO.getWBOsFromCollection(user, collectionName, java.util.Arrays.asList(ids: _*), null, parentId, modifiedBefore.bigDecimal, modifiedSince.bigDecimal, null, null, limit, offset, sortOrder)
+              
+              val idsList = {
+                if (ids == null) {
+                  null
+                } else {
+                  java.util.Arrays.asList(ids: _*)
+                }
+              }
+              val modifiedSinceBigDecimal = {
+                if (modifiedSince == null) {
+                  null
+                } else {
+                  modifiedSince.bigDecimal
+                }
+              }
+              val modifiedBeforeBigDecimal = {
+                if (modifiedBefore == null) {
+                  null
+                } else {
+                  modifiedBefore.bigDecimal
+                }
+              }
+
+              val wbos = storageDAO.getWBOsFromCollection(user, collectionName, idsList, predecessorId, parentId, modifiedBeforeBigDecimal, modifiedSinceBigDecimal, indexAbove, indexBelow, limit, offset, sortOrder)
               for (wbo <- wbos) {
                 storageDAO.deleteWBO(wbo)
               }
