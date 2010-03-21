@@ -8,7 +8,12 @@ package org.marsching.weave4j.dbo.exception;
  * To change this template use File | Settings | File Templates.
  */
 public class DAOException extends RuntimeException {
-    public DAOException() {
+    /**
+	 * Serial version UID. Generated automatically.
+	 */
+	private static final long serialVersionUID = 6625286005180785204L;
+
+	public DAOException() {
     }
 
     public DAOException(String message) {

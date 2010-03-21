@@ -33,7 +33,8 @@ public class WeaveUser {
      *
      * @param artificialId artificial unique identifier
      */
-    private void setArtificialId(Long artificialId) {
+    @SuppressWarnings("unused")
+	private void setArtificialId(Long artificialId) {
         this.artificialId = artificialId;
     }
 

@@ -8,7 +8,12 @@ package org.marsching.weave4j.dbo.exception;
  * To change this template use File | Settings | File Templates.
  */
 public class InvalidUserException extends DAOException {
-    public InvalidUserException() {
+    /**
+	 * Serial version UID. Generated automatically.
+	 */
+	private static final long serialVersionUID = -7537218497096385829L;
+
+	public InvalidUserException() {
     }
 
     public InvalidUserException(String message) {

@@ -39,7 +39,8 @@ public class WeaveBasicObject {
      *
      * @param artificialId artificial unique identifier
      */
-    public void setArtificialId(Long artificialId) {
+    @SuppressWarnings("unused")
+	private void setArtificialId(Long artificialId) {
         this.artificialId = artificialId;
     }
 
