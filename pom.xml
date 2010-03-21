@@ -110,9 +110,6 @@
   </dependencies>
 
   <build>
-    <sourceDirectory>src/main/scala</sourceDirectory>
-    <testSourceDirectory>src/test/scala</testSourceDirectory>
-
     <plugins>
       <plugin>
         <groupId>org.scala-tools</groupId>
@@ -120,8 +117,17 @@
         <version>2.7.2</version>
         <executions>
           <execution>
+            <id>scala-compile-first</id>
+            <phase>process-resources</phase>
             <goals>
+              <goal>add-source</goal>
               <goal>compile</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>scala-test-compile</id>
+            <phase>process-test-resources</phase>
+            <goals>
               <goal>testCompile</goal>
             </goals>
           </execution>
@@ -141,6 +147,14 @@
           <source>1.5</source>
           <target>1.5</target>
         </configuration>
+        <executions>
+          <execution>
+            <phase>compile</phase>
+            <goals>
+              <goal>compile</goal>
+            </goals>
+          </execution>
+        </executions>
       </plugin>
 
       <plugin>
@@ -175,6 +189,30 @@
             </configuration>
           </execution>
         </executions>
+      </plugin>
+
+      <plugin>
+        <artifactId>maven-eclipse-plugin</artifactId>
+        <configuration>
+          <sourceIncludes>
+            <sourceInclude>**/*.scala</sourceInclude>
+          </sourceIncludes>
+          <buildcommands>
+            <buildcommand>ch.epfl.lamp.sdt.core.scalabuilder</buildcommand>
+          </buildcommands>
+          <additionalProjectnatures>
+            <!--
+              maven-eclipse-plugin puts this nature after
+              org.eclipse.jdt.core.javanature in .project so the project
+              will have a J badge instead of an S in the Package Explorer
+            -->
+            <projectnature>ch.epfl.lamp.sdt.core.scalanature</projectnature>
+          </additionalProjectnatures>
+          <classpathContainers>
+            <classpathContainer>org.eclipse.jdt.launching.JRE_CONTAINER</classpathContainer>
+            <classpathContainer>ch.epfl.lamp.sdt.launching.SCALA_CONTAINER</classpathContainer>
+          </classpathContainers>
+        </configuration>
       </plugin>
 
     </plugins>
