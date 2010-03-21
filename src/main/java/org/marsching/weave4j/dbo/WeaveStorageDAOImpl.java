@@ -56,11 +56,13 @@ public class WeaveStorageDAOImpl implements WeaveStorageDAO {
         criteria.createCriteria("collection")
                 .add(Restrictions.eq("user", user))
                 .add(Restrictions.eq("type", collection));
-        Disjunction idDisjunction = Restrictions.disjunction();
-        for (String id : ids) {
-            idDisjunction.add(Restrictions.eq("id", id));
+        if (ids != null) {
+            Disjunction idDisjunction = Restrictions.disjunction();
+            for (String id : ids) {
+                idDisjunction.add(Restrictions.eq("id", id));
+            }
+            criteria.add(idDisjunction);
         }
-        criteria.add(idDisjunction);
         if (predecessorId != null) {
             criteria.add(Restrictions.eq("predecessorId", predecessorId));
         }
