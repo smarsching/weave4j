@@ -5,11 +5,26 @@
 
   <artifactId>weave4j</artifactId>
   <groupId>org.marsching.weave4j</groupId>
+  <name>weave4j</name>
   <version>1.0.0</version>
 
   <modelVersion>4.0.0</modelVersion>
 
   <packaging>war</packaging>
+
+  <description>Weave Server for Java</description>
+  <url>http://projects.marsching.org/weave4j/</url>
+  <inceptionYear>2010</inceptionYear>
+  <licenses>
+    <license>
+        <name>GNU General Public License Version 3</name>
+        <url>http://www.gnu.org/licenses/gpl-3.0.txt</url>
+    </license>
+  </licenses>
+  <organization>
+    <name>Sebastian Marsching</name>
+    <url>http://www.marsching.com/</url>
+  </organization>
 
   <properties>
     <scala.version>2.7.7</scala.version>
