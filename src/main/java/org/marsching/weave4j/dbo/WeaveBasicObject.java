@@ -16,8 +16,6 @@
  */
 package org.marsching.weave4j.dbo;
 
-import org.codehaus.jackson.annotate.*;
-
 import java.math.BigDecimal;
 
 /**
@@ -25,8 +23,6 @@ import java.math.BigDecimal;
  *
  * @author Sebastian Marsching
  */
-@JsonAutoDetect(JsonMethod.NONE)
-@JsonWriteNullProperties(false)
 public class WeaveBasicObject {
 
     private Long artificialId;
@@ -65,7 +61,6 @@ public class WeaveBasicObject {
      *
      * @return identifier identifying this WBO within its collection
      */
-    @JsonGetter("id")
     public String getId() {
         return id;
     }
@@ -76,7 +71,6 @@ public class WeaveBasicObject {
      *
      * @param id identifier for this WBO
      */
-    @JsonSetter("id")
     public void setId(String id) {
         this.id = id;
     }
@@ -88,7 +82,6 @@ public class WeaveBasicObject {
      * @return parent node's identifier
      *
      */
-    @JsonGetter("parentid")
     public String getParentId() {
         return parentId;
     }
@@ -98,7 +91,6 @@ public class WeaveBasicObject {
      *
      * @param parentId identifier of another WBO
      */
-    @JsonSetter("parentid")
     public void setParentId(String parentId) {
         this.parentId = parentId;
     }
@@ -110,7 +102,6 @@ public class WeaveBasicObject {
      * @return predecessor node's identifier
      *
      */
-    @JsonGetter("predecessorid")
     public String getPredecessorId() {
         return predecessorId;
     }
@@ -120,7 +111,6 @@ public class WeaveBasicObject {
      *
      * @param predecessorId identifier of another WBO
      */
-    @JsonSetter("predecessorid")
     public void setPredecessorId(String predecessorId) {
         this.predecessorId = predecessorId;
     }
@@ -130,7 +120,6 @@ public class WeaveBasicObject {
      *
      * @return timestamp this WBO has been last modified
      */
-    @JsonGetter("modified")
     public BigDecimal getModified() {
         return modified;
     }
@@ -140,7 +129,6 @@ public class WeaveBasicObject {
      *
      * @param modified timestamp of the last modification in seconds since 01/01/1970
      */
-    @JsonSetter("modified")
     public void setModified(BigDecimal modified) {
         this.modified = modified;
     }
@@ -151,7 +139,6 @@ public class WeaveBasicObject {
      *
      * @return sort index or <code>null</code>
      */
-    @JsonGetter("sortindex")
     public Integer getSortIndex() {
         return sortIndex;
     }
@@ -161,7 +148,6 @@ public class WeaveBasicObject {
      *
      * @param sortIndex sort index
      */
-    @JsonSetter("sortindex")
     public void setSortIndex(Integer sortIndex) {
         this.sortIndex = sortIndex;
     }
@@ -171,7 +157,6 @@ public class WeaveBasicObject {
      *
      * @return payload
      */
-    @JsonGetter("payload")
     public String getPayload() {
         return payload;
     }
@@ -181,7 +166,6 @@ public class WeaveBasicObject {
      *
      * @param payload arbitrary string representing the data stored in this WBO
      */
-    @JsonSetter("payload")
     public void setPayload(String payload) {
         this.payload = payload;
     }
