@@ -20,7 +20,7 @@ import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
 import org.codehaus.jackson.{JsonGenerator, JsonEncoding, JsonNode}
 import java.io.{OutputStream, ByteArrayOutputStream}
 import org.springframework.util.Assert
-import collection.jcl.MutableIterator
+import collection.JavaConversions._
 import org.marsching.weave4j.dbo.WeaveBasicObject
 import org.codehaus.jackson.map.{JsonMappingException, ObjectMapper}
 import org.codehaus.jackson.node.{TextNode, ObjectNode, ArrayNode}
@@ -86,7 +86,7 @@ object JSONHelper {
         val baos = new ByteArrayOutputStream()
         val jsonGenerator = objectMapper.getJsonFactory().createJsonGenerator(baos, JsonEncoding.UTF8)
         val os = response.getOutputStream()
-        for (node: JsonNode <- new MutableIterator.Wrapper(node.getElements())) {
+        for (node: JsonNode <- node.getElements()) {
           objectMapper.writeValue(jsonGenerator, node)
           val jsonBytes = baos.toByteArray()
           baos.reset()
@@ -98,13 +98,13 @@ object JSONHelper {
         val baos = new ByteArrayOutputStream()
         val jsonGenerator = objectMapper.getJsonFactory().createJsonGenerator(baos, JsonEncoding.UTF8)
         val os = response.getOutputStream()
-        for (node: JsonNode <- new MutableIterator.Wrapper(node.getElements())) {
+        for (node: JsonNode <- node.getElements()) {
           objectMapper.writeValue(jsonGenerator, node)
           val jsonBytes = baos.toByteArray()
           baos.reset()
           val jsonBytesConverted: Array[Byte] = jsonBytes map ((b: Byte) => {
             if (b == '\n')
-              0x0a
+              0x0a.asInstanceOf[Byte]
             else
               b
           })

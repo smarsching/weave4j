@@ -19,8 +19,7 @@ package org.marsching.weave4j.web
 import org.springframework.web.HttpRequestHandler
 import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
 import org.apache.commons.codec.binary.Base64
-import scala.collection.jcl.Conversions._
-import scala.collection.jcl
+import collection.JavaConversions._
 import org.marsching.weave4j.dbo.WeaveStorageDAO.SortOrder
 import org.marsching.weave4j.dbo.{WeaveBasicObject, WeaveUser, WeaveStorageDAO, WeaveUserDAO}
 import org.codehaus.jackson.map.JsonMappingException
@@ -547,7 +546,7 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
             var successIDs: List[String] = List()
             var failedIDs = Map.empty[String, String]
 
-            for (node: JsonNode <- new jcl.MutableIterator.Wrapper(jsonIn.getElements())) {
+            for (node: JsonNode <- jsonIn.getElements()) {
               if (isJSONValidWeaveBasicObject(node)) {
                 try {
                   val requestWbo = new WeaveBasicObject()
@@ -740,7 +739,6 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
         }
       }
       wbo.setModified(newModified.bigDecimal)
-      return wbo
     }
 
 
