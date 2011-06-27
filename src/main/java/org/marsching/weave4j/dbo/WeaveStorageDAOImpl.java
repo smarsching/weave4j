@@ -66,12 +66,12 @@ public class WeaveStorageDAOImpl implements WeaveStorageDAO {
     public long getCollectionSize(WeaveUser user, String collection,
             BigInteger timestamp) {
         Number size = (Number) sessionFactory.getCurrentSession().createQuery("select sum(length(wbo.payload)) from WeaveBasicObject wbo, WeaveCollection c where c.user = ? and c.type = ? and wbo.collection = c and (wbo.ttl is null or wbo.ttl >= ?)").setEntity(0, user).setString(1, collection).setBigInteger(2, timestamp).uniqueResult();
-        return size.longValue();
+        return size.longValue() / 1024L;
     }
 
     public long getTotalSize(WeaveUser user, BigInteger timestamp) {
         Number size = (Number) sessionFactory.getCurrentSession().createQuery("select sum(length(wbo.payload)) from WeaveBasicObject wbo, WeaveCollection c where c.user = ? and wbo.collection = c and (wbo.ttl is null or wbo.ttl >= ?)").setEntity(0, user).setBigInteger(1, timestamp).uniqueResult();
-        return size.longValue();
+        return size.longValue() / 1024L;
     }
 
     public WeaveBasicObject getWBO(WeaveUser user, String collection, String id, BigInteger timestamp) {
