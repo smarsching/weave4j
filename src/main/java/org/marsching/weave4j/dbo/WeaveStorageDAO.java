@@ -17,6 +17,7 @@
 package org.marsching.weave4j.dbo;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.List;
 
 /**
@@ -40,18 +41,39 @@ public interface WeaveStorageDAO {
      *
      * @param user Weave user
      * @param collection type of the collection
+     * @param timestamp the timestamp to use for checking the TTL of WBOs
      * @return the timestamp of the last modification of this WBO or <code>null</code>
      */
-    BigDecimal getLastModified(WeaveUser user, String collection);
+    BigDecimal getLastModified(WeaveUser user, String collection, BigInteger timestamp);
 
     /**
      * Returns the number of WBOs stored within a collection.
      *
      * @param user Weave user
      * @param collection type of the collection
+     * @param timestamp the timestamp to use for checking the TTL of WBOs
      * @return number of WBOs stored within the collection
      */
-    int getWBOCount(WeaveUser user, String collection);
+    int getWBOCount(WeaveUser user, String collection, BigInteger timestamp);
+
+    /**
+     * Returns the size of the data stored in a collection.
+     * 
+     * @param user Weave user
+     * @param collection type of the collection
+     * @param timestamp the timestamp to use for checking the TTL of WBOs
+     * @return the size of the data in the collection in kilobytes
+     */
+    long getCollectionSize(WeaveUser user, String collection, BigInteger timestamp);
+
+    /**
+     * Returns the size of the data stored for a user.
+     * 
+     * @param user Weave user
+     * @param timestamp the timestamp to use for checking the TTL of WBOs
+     * @return the size of the data stored for a user in kilobytes
+     */
+    long getTotalSize(WeaveUser user, BigInteger timestamp);
 
     /**
      * Returns the WBO identified by the specified parameters or <code>null</code> if none such WBO is found.
@@ -59,9 +81,10 @@ public interface WeaveStorageDAO {
      * @param user Weave user
      * @param collection type of the collection
      * @param id identifier of the WBO
+     * @param timestamp the timestamp to use for checking the TTL of WBOs
      * @return the Weave Basic Object identified by the parameters
      */
-    WeaveBasicObject getWBO(WeaveUser user, String collection, String id);
+    WeaveBasicObject getWBO(WeaveUser user, String collection, String id, BigInteger timestamp);
 
     /**
      * Retuns all WBOs from a collection that satisfy the specified predicates.
@@ -79,6 +102,7 @@ public interface WeaveStorageDAO {
      * @param limit limit the number of WBOs returned (optional)
      * @param offset skip the number of WBOs returned (from the beginning of the list) (optional)
      * @param sortOrder order in which the returned WBOs are sorted (optional)
+     * @param timestamp the timestamp to use for checking the TTL of WBOs
      * @return list of WBOs matching the predicates
      */
     List<WeaveBasicObject> getWBOsFromCollection(
@@ -93,7 +117,8 @@ public interface WeaveStorageDAO {
             Integer sortIndexBelow,
             Integer limit,
             Integer offset,
-            SortOrder sortOrder);
+            SortOrder sortOrder,
+            BigInteger timestamp);
 
     /**
      * Stores a WBO in the database. The collection type specified here will override the collection specified within
@@ -106,7 +131,7 @@ public interface WeaveStorageDAO {
     void insertWBO(WeaveUser user, String collection, WeaveBasicObject wbo);
 
     /**
-     * Deletes a WBO frm the database.
+     * Deletes a WBO from the database.
      *
      * @param wbo the WBO which shall be deleted
      */
@@ -126,4 +151,12 @@ public interface WeaveStorageDAO {
      * @param user Weave user
      */
     void deleteAllCollections(WeaveUser user);
+    
+    /**
+     * Deletes all WBOs, whose TTL is older than the given timestamp.
+     * 
+     * @param timestamp current time as UNIX timestamp (seconds since 
+     *  01/01/1970).
+     */
+    void cleanUpExpiredWBOs(BigInteger timestamp);
 }

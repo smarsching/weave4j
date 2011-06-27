@@ -24,6 +24,7 @@ import org.hibernate.criterion.Order;
 import org.hibernate.criterion.Restrictions;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.List;
 
 /**
@@ -44,8 +45,8 @@ public class WeaveStorageDAOImpl implements WeaveStorageDAO {
         this.sessionFactory = sessionFactory;
     }
 
-    public BigDecimal getLastModified(WeaveUser user, String collection) {
-        BigDecimal lastModified = (BigDecimal) sessionFactory.getCurrentSession().createQuery("select max(wbo.modified) from WeaveBasicObject wbo, WeaveCollection c where c.user = ? and c.type = ? and wbo.collection = c").setEntity(0, user).setString(1, collection).uniqueResult();
+    public BigDecimal getLastModified(WeaveUser user, String collection, BigInteger timestamp) {
+        BigDecimal lastModified = (BigDecimal) sessionFactory.getCurrentSession().createQuery("select max(wbo.modified) from WeaveBasicObject wbo, WeaveCollection c where c.user = ? and c.type = ? and wbo.collection = c and (wbo.ttl is null or wbo.ttl >= ?)").setEntity(0, user).setString(1, collection).setBigInteger(2, timestamp).uniqueResult();
         if (lastModified == null) {
             return new BigDecimal(0);
         } else {
@@ -53,8 +54,8 @@ public class WeaveStorageDAOImpl implements WeaveStorageDAO {
         }
     }
 
-    public int getWBOCount(WeaveUser user, String collection) {
-        Integer count = (Integer) sessionFactory.getCurrentSession().createQuery("select count(wbo) from WeaveBasicObject wbo, WeaveCollection c where c.user = ? and c.type = ? and wbo.collection = c").setEntity(0, user).setString(1, collection).uniqueResult();
+    public int getWBOCount(WeaveUser user, String collection, BigInteger timestamp) {
+        Integer count = (Integer) sessionFactory.getCurrentSession().createQuery("select count(wbo) from WeaveBasicObject wbo, WeaveCollection c where c.user = ? and c.type = ? and wbo.collection = c and (wbo.ttl is null or wbo.ttl >= ?)").setEntity(0, user).setString(1, collection).setBigInteger(2, timestamp).uniqueResult();
         if (count == null) {
             return 0;
         } else {
@@ -62,13 +63,25 @@ public class WeaveStorageDAOImpl implements WeaveStorageDAO {
         }
     }
 
-    public WeaveBasicObject getWBO(WeaveUser user, String collection, String id) {
-        return (WeaveBasicObject) sessionFactory.getCurrentSession().createQuery("select wbo from WeaveBasicObject wbo, WeaveCollection c where c.user = ? and c.type = ? and wbo.collection = c and wbo.id = ?").setEntity(0, user).setString(1, collection).setString(2, id).uniqueResult();
+    public long getCollectionSize(WeaveUser user, String collection,
+            BigInteger timestamp) {
+        Number size = (Number) sessionFactory.getCurrentSession().createQuery("select sum(length(wbo.payload)) from WeaveBasicObject wbo, WeaveCollection c where c.user = ? and c.type = ? and wbo.collection = c and (wbo.ttl is null or wbo.ttl >= ?)").setEntity(0, user).setString(1, collection).setBigInteger(2, timestamp).uniqueResult();
+        return size.longValue();
     }
 
-    public List<WeaveBasicObject> getWBOsFromCollection(WeaveUser user, String collection, List<String> ids, String predecessorId, String parentId, BigDecimal modifiedBefore, BigDecimal modifiedSince, Integer sortIndexAbove, Integer sortIndexBelow, Integer limit, Integer offset, SortOrder sortOrder) {
+    public long getTotalSize(WeaveUser user, BigInteger timestamp) {
+        Number size = (Number) sessionFactory.getCurrentSession().createQuery("select sum(length(wbo.payload)) from WeaveBasicObject wbo, WeaveCollection c where c.user = ? and wbo.collection = c and (wbo.ttl is null or wbo.ttl >= ?)").setEntity(0, user).setBigInteger(1, timestamp).uniqueResult();
+        return size.longValue();
+    }
+
+    public WeaveBasicObject getWBO(WeaveUser user, String collection, String id, BigInteger timestamp) {
+        return (WeaveBasicObject) sessionFactory.getCurrentSession().createQuery("select wbo from WeaveBasicObject wbo, WeaveCollection c where c.user = ? and c.type = ? and wbo.collection = c and wbo.id = ? and (wbo.ttl is null or wbo.ttl >= ?)").setEntity(0, user).setString(1, collection).setString(2, id).setBigInteger(3, timestamp).uniqueResult();
+    }
+
+    public List<WeaveBasicObject> getWBOsFromCollection(WeaveUser user, String collection, List<String> ids, String predecessorId, String parentId, BigDecimal modifiedBefore, BigDecimal modifiedSince, Integer sortIndexAbove, Integer sortIndexBelow, Integer limit, Integer offset, SortOrder sortOrder, BigInteger timestamp) {
         Session session = sessionFactory.getCurrentSession();
-        Criteria criteria = session.createCriteria(WeaveBasicObject.class);
+        Criteria criteria = session.createCriteria(WeaveBasicObject.class)
+            .add(Restrictions.or(Restrictions.isNull("ttl"), Restrictions.ge("ttl", timestamp)));
         criteria.createCriteria("collection")
                 .add(Restrictions.eq("user", user))
                 .add(Restrictions.eq("type", collection));
@@ -165,5 +178,9 @@ public class WeaveStorageDAOImpl implements WeaveStorageDAO {
         for (WeaveCollection weaveCollection : user.getCollections()) {
             deleteCollection(weaveCollection);
         }
+    }
+
+    public void cleanUpExpiredWBOs(BigInteger timestamp) {
+        sessionFactory.getCurrentSession().createQuery("delete WeaveBasicObject wbo where wbo.ttl is not null and wbo.ttl < ?").setBigInteger(0, timestamp).executeUpdate();
     }
 }

@@ -16,19 +16,20 @@
  */
 package org.marsching.weave4j.web
 
-import org.springframework.web.HttpRequestHandler
-import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
+import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
 import org.apache.commons.codec.binary.Base64
-import collection.JavaConversions._
-import org.marsching.weave4j.dbo.WeaveStorageDAO.SortOrder
-import org.marsching.weave4j.dbo.{WeaveBasicObject, WeaveUser, WeaveStorageDAO, WeaveUserDAO}
 import org.codehaus.jackson.map.JsonMappingException
+import org.codehaus.jackson.node.{ArrayNode, ObjectNode, TextNode}
+import org.codehaus.jackson.{JsonNode, JsonParseException, JsonProcessingException}
 import org.hibernate.HibernateException
-import org.springframework.transaction.support.DefaultTransactionDefinition
-import org.springframework.transaction.{TransactionDefinition, PlatformTransactionManager}
+import org.marsching.weave4j.dbo.WeaveStorageDAO.SortOrder
+import org.marsching.weave4j.dbo.{WeaveBasicObject, WeaveStorageDAO, WeaveUser, WeaveUserDAO}
 import org.slf4j.LoggerFactory
-import org.codehaus.jackson.node.{TextNode, ArrayNode, ObjectNode}
-import org.codehaus.jackson.{JsonParseException, JsonProcessingException, JsonNode}
+import org.springframework.transaction.support.DefaultTransactionDefinition
+import org.springframework.transaction.{PlatformTransactionManager, TransactionDefinition}
+import org.springframework.web.HttpRequestHandler
+import scala.collection.JavaConversions._
+import org.codehaus.jackson.node.NullNode
 
 /**
  * Handler for Weave HTTP requests.
@@ -74,6 +75,16 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
   protected val logger = LoggerFactory.getLogger(this.getClass)
 
   /**
+   * Different versions of the Weave protocol.
+   */
+  object ProtocolVersion extends Enumeration {
+    type ProtocolVersion = Value
+    val ProtocolVersion_1_0 = Value("1.0")
+    val ProtocolVersion_1_1 = Value("1.1")
+  }
+  import ProtocolVersion._
+
+  /**
    * Main entry method for request handling.
    *
    * @param request HTTP request
@@ -87,15 +98,21 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
     val PathMatcher = "^(?:/([^/]+))?/(\\d+(?:\\.\\d+)?)(/.+)$".r
     try {
       val PathMatcher(apiName, version, command) = pathInfo
-      if (version != "1" && version != "1.0") {
-        logger.debug("Version mismatch: Got version " + version)
-        WeaveErrors.errorUnsupportedVersion(response)
-        return
+      val protocolVersion = {
+        if (version == "1" || version == "1.0") {
+          ProtocolVersion_1_0
+        } else if (version == "1.1") {
+          ProtocolVersion_1_1
+        } else {
+          logger.debug("Version mismatch: Got version " + version)
+          WeaveErrors.errorUnsupportedVersion(response)
+          return
+        }
       }
       apiName match {
-        case null => StorageRequestHandler.handleRequest(request, response, command, timestamp)
-        case "user" => UserRequestHandler.handleRequest(request, response, command, timestamp)
-        case "misc" => MiscRequestHandler.handleRequest(request, response, command, timestamp)
+        case null => StorageRequestHandler.handleRequest(request, response, command, timestamp, protocolVersion)
+        case "user" => UserRequestHandler.handleRequest(request, response, command, timestamp, protocolVersion)
+        case "misc" => MiscRequestHandler.handleRequest(request, response, command, timestamp, protocolVersion)
       }
     } catch {
       case e: MatchError => {
@@ -240,21 +257,22 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
    */
   private object StorageRequestHandler {
 
-    def handleRequest(request: HttpServletRequest, response: HttpServletResponse, path: String, timestamp: BigDecimal) {
+    def handleRequest(request: HttpServletRequest, response: HttpServletResponse, path: String, timestamp: BigDecimal, version: ProtocolVersion) {
       val PathMatcher = "^/([^/]+)/([^/]+)(?:/(.*))?$".r
       try {
         val PathMatcher(username, command, commandInfo) = path;
         command match {
-          case "info" => handleInfoCommand(request, response, username, commandInfo, timestamp)
-          case "storage" => handleStorageCommand(request, response, username, commandInfo, timestamp)
+          case "info" => handleInfoCommand(request, response, username, commandInfo, timestamp, version)
+          case "storage" => handleStorageCommand(request, response, username, commandInfo, timestamp, version)
         }
       } catch {
         case e: MatchError => WeaveErrors.errorBadProtocol(response)
       }
     }
 
-    def handleInfoCommand(request: HttpServletRequest, response: HttpServletResponse, username: String, path: String, timestamp: BigDecimal) {
+    def handleInfoCommand(request: HttpServletRequest, response: HttpServletResponse, username: String, path: String, timestamp: BigDecimal, version: ProtocolVersion) {
       withReadOnlyTransaction {
+        val timestampInt = timestamp.toBigInt.bigInteger
         val user = tryLoginUser(request, response, username)
         if (request.getMethod() != "GET") {
           WeaveErrors.errorBadProtocol(response)
@@ -267,33 +285,52 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
             val map = JSONHelper.createJSONObjectNode
             for (collection <- user.getCollections()) {
               val typeName = collection.getType()
-              val lastModified = storageDAO.getLastModified(user, typeName)
+              val lastModified = storageDAO.getLastModified(user, typeName, timestampInt)
               map.put(typeName, lastModified)
             }
             JSONHelper.writeJSON(request, response, map)
           }
 
-          case "collections_count" => {
+          case "collection_usage" => {
+            if (version != ProtocolVersion_1_1) {
+              WeaveErrors.errorBadProtocol(response)
+            }
             val collections = user.getCollections()
             val map = JSONHelper.createJSONObjectNode
             for (collection <- user.getCollections()) {
               val typeName = collection.getType()
-              val count = storageDAO.getWBOCount(user, typeName)
+              val size = storageDAO.getCollectionSize(user, typeName, timestampInt)
+              map.put(typeName, size)
+            }
+            JSONHelper.writeJSON(request, response, map)
+          }
+
+          case "collection_counts" => {
+            val collections = user.getCollections()
+            val map = JSONHelper.createJSONObjectNode
+            for (collection <- user.getCollections()) {
+              val typeName = collection.getType()
+              val count = storageDAO.getWBOCount(user, typeName, timestampInt)
               map.put(typeName, count)
             }
             JSONHelper.writeJSON(request, response, map)
           }
 
           case "quota" => {
-            WeaveErrors.errorUnsupportedFunction(response)
+            val size = storageDAO.getTotalSize(user, timestampInt)
+            val array = JSONHelper.createJSONArrayNode
+            array.add(size)
+            // We do not have support for quotas yet.
+            array.add(NullNode.instance)
           }
         }
       }
     }
 
-    def handleStorageCommand(request: HttpServletRequest, response: HttpServletResponse, username: String, path: String, timestamp: BigDecimal) {
+    def handleStorageCommand(request: HttpServletRequest, response: HttpServletResponse, username: String, path: String, timestamp: BigDecimal, version: ProtocolVersion) {
       val PathMatcher = "^([^/]+)?(?:/(.*))?$".r
       val PathMatcher(collectionName, wboId) = path
+      val timestampInt = timestamp.toBigInt.bigInteger
       val headerIfUnmodifiedSince = request.getHeader(HeaderIfUnmodifiedSince)
       val ifUnmodifiedSince =
         if (headerIfUnmodifiedSince != null)
@@ -306,6 +343,7 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
           withReadOnlyTransaction {
             val user = tryLoginUser(request, response, username)
 
+            val includeTtl = version == ProtocolVersion_1_1
             if (collectionName == null) {
               WeaveErrors.errorBadProtocol(response)
               return
@@ -383,7 +421,7 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
                 }
               }
 
-              val wbos = storageDAO.getWBOsFromCollection(user, collectionName, idsList, predecessorId, parentId, modifiedBeforeBigDecimal, modifiedSinceBigDecimal, indexAbove, indexBelow, limit, offset, sortOrder)
+              val wbos = storageDAO.getWBOsFromCollection(user, collectionName, idsList, predecessorId, parentId, modifiedBeforeBigDecimal, modifiedSinceBigDecimal, indexAbove, indexBelow, limit, offset, sortOrder, timestampInt)
               if (wbos.size() == 0) {
                 WeaveErrors.errorHttpNotFound(response)
                 return
@@ -391,18 +429,18 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
               val array = JSONHelper.createJSONArrayNode
               for (wbo: WeaveBasicObject <- wbos) {
                 if (full) {
-                  array.add(JSONHelper.weaveBasicObjectToJSON(wbo))
+                  array.add(JSONHelper.weaveBasicObjectToJSON(wbo, includeTtl, timestamp))
                 } else {
                   array.add(wbo.getId())
                 }
               }
               JSONHelper.writeJSON(request, response, array)
             } else {
-              val wbo = storageDAO.getWBO(user, collectionName, wboId)
+              val wbo = storageDAO.getWBO(user, collectionName, wboId, timestampInt)
               if (wbo == null) {
                 WeaveErrors.errorHttpNotFound(response)
               } else {
-                JSONHelper.writeJSON(request, response, JSONHelper.weaveBasicObjectToJSON(wbo))
+                JSONHelper.writeJSON(request, response, JSONHelper.weaveBasicObjectToJSON(wbo, includeTtl, timestamp))
               }
             }
           }
@@ -411,6 +449,9 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
         case "DELETE" => {
           withReadWriteTransaction {
             val user = tryLoginUser(request, response, username)
+
+            // Clean-up expired WBOs
+            storageDAO.cleanUpExpiredWBOs(timestampInt)
 
             if (collectionName == null && wboId == null) {
               if (request.getHeader(HeaderConfirmDelete) == null) {
@@ -468,11 +509,11 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
                 }
               }
 
-              if (collectionModifiedSince(user, collectionName, ifUnmodifiedSince)) {
+              if (collectionModifiedSince(user, collectionName, ifUnmodifiedSince, timestampInt)) {
                 WeaveErrors.errorHttpPreConditionFailed(response)
                 return
               }
-              
+
               val idsList = {
                 if (ids == null) {
                   null
@@ -495,7 +536,7 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
                 }
               }
 
-              val wbos = storageDAO.getWBOsFromCollection(user, collectionName, idsList, null, parentId, modifiedBeforeBigDecimal, modifiedSinceBigDecimal, null, null, limit, offset, sortOrder)
+              val wbos = storageDAO.getWBOsFromCollection(user, collectionName, idsList, null, parentId, modifiedBeforeBigDecimal, modifiedSinceBigDecimal, null, null, limit, offset, sortOrder, timestampInt)
               for (wbo <- wbos) {
                 storageDAO.deleteWBO(wbo)
               }
@@ -506,12 +547,12 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
 
               JSONHelper.writeJSON(request, response, timestamp)
             } else if (collectionName != null && wboId != null) {
-              if (collectionModifiedSince(user, collectionName, ifUnmodifiedSince)) {
+              if (collectionModifiedSince(user, collectionName, ifUnmodifiedSince, timestampInt)) {
                 WeaveErrors.errorHttpPreConditionFailed(response)
                 return
               }
 
-              val wbo = storageDAO.getWBO(user, collectionName, wboId)
+              val wbo = storageDAO.getWBO(user, collectionName, wboId, timestampInt)
               storageDAO.deleteWBO(wbo)
 
               JSONHelper.writeJSON(request, response, timestamp)
@@ -522,6 +563,9 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
         case "POST" => {
           withReadWriteTransaction {
             val user = tryLoginUser(request, response, username)
+
+            // Clean-up expired WBOs
+            storageDAO.cleanUpExpiredWBOs(timestampInt)
 
             if (collectionName == null || wboId != null) {
               WeaveErrors.errorBadProtocol(response)
@@ -547,19 +591,19 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
             var failedIDs = Map.empty[String, String]
 
             for (node: JsonNode <- jsonIn.getElements()) {
-              if (isJSONValidWeaveBasicObject(node)) {
+              if (isJSONValidWeaveBasicObject(node, version)) {
                 try {
                   val requestWbo = new WeaveBasicObject()
-                  updateWeaveBasicObjectWithDataFromJSON(requestWbo, node, timestamp)
+                  updateWeaveBasicObjectWithDataFromJSON(requestWbo, node, version, timestamp)
                   val wboId = requestWbo.getId()
                   if (wboId == null) {
                     throw new JsonMappingException("Invalid WBO: Id is missing")
                   }
-                  val dbWbo = storageDAO.getWBO(user, collectionName, wboId)
+                  val dbWbo = storageDAO.getWBO(user, collectionName, wboId, timestampInt)
                   if (dbWbo == null && requestWbo.getPayload() != null) {
                     storageDAO.insertWBO(user, collectionName, requestWbo)
                   } else if (dbWbo != null) {
-                    updateWeaveBasicObjectWithDataFromJSON(dbWbo, node, timestamp)
+                    updateWeaveBasicObjectWithDataFromJSON(dbWbo, node, version, timestamp)
                   }
                   successIDs = wboId :: successIDs
                 } catch {
@@ -606,12 +650,15 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
           withReadWriteTransaction {
             val user = tryLoginUser(request, response, username)
 
+            // Clean-up expired WBOs
+            storageDAO.cleanUpExpiredWBOs(timestampInt)
+
             if (collectionName == null || wboId == null) {
               WeaveErrors.errorBadProtocol(response)
               return
             }
 
-            val dbWbo = storageDAO.getWBO(user, collectionName, wboId)
+            val dbWbo = storageDAO.getWBO(user, collectionName, wboId, timestampInt)
             val update = (dbWbo != null)
             val wbo = {
               if (update) {
@@ -623,7 +670,7 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
               }
             }
             try {
-              updateWeaveBasicObjectWithDataFromJSON(wbo, JSONHelper.readJSON(request), timestamp)
+              updateWeaveBasicObjectWithDataFromJSON(wbo, JSONHelper.readJSON(request), version, timestamp)
             } catch {
               case e: JsonMappingException => {
                 WeaveErrors.errorInvalidWBO(response)
@@ -648,8 +695,8 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
       }
     }
 
-    private def collectionModifiedSince(user: WeaveUser, collectionName: String, ifModifiedSince: BigDecimal): Boolean = {
-      val lastModified = storageDAO.getLastModified(user, collectionName)
+    private def collectionModifiedSince(user: WeaveUser, collectionName: String, ifModifiedSince: BigDecimal, timestamp: java.math.BigInteger): Boolean = {
+      val lastModified = storageDAO.getLastModified(user, collectionName, timestamp)
       if (lastModified != null && ifModifiedSince != null && ifModifiedSince < new BigDecimal(lastModified)) {
         true
       } else {
@@ -658,7 +705,7 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
 
     }
 
-    private def isJSONValidWeaveBasicObject(root: JsonNode): Boolean = {
+    private def isJSONValidWeaveBasicObject(root: JsonNode, version: ProtocolVersion): Boolean = {
       if (!root.isObject()) {
         return false
       }
@@ -678,10 +725,15 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
       if (payload != null && !payload.isTextual() && !payload.isNull()) {
         return false
       }
+      if (version == ProtocolVersion_1_1) {
+        val ttl = root.get("ttl")
+        if (ttl != null && (!ttl.isNumber || ttl.getBigIntegerValue.compareTo(java.math.BigInteger.ZERO) == -1))
+          return false
+      }
       return true
     }
 
-    private def updateWeaveBasicObjectWithDataFromJSON(wbo: WeaveBasicObject, root: JsonNode, newModified: BigDecimal) {
+    private def updateWeaveBasicObjectWithDataFromJSON(wbo: WeaveBasicObject, root: JsonNode, version: ProtocolVersion, timestamp: BigDecimal) {
       def invalidWBO(): Nothing = {
         throw new JsonMappingException("Invalid WBO")
       }
@@ -738,9 +790,17 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
           wbo.setPayload(payload.getTextValue())
         }
       }
-      wbo.setModified(newModified.bigDecimal)
+      val ttl = root.get("ttl")
+      if (ttl != null && version == ProtocolVersion_1_1) {
+        if (!ttl.isNumber)
+          invalidWBO
+        val ttlValue = ttl.getBigIntegerValue
+        if (ttlValue.compareTo(java.math.BigInteger.ZERO) == -1)
+          invalidWBO
+        wbo.setTtl(ttlValue.add(timestamp.toBigInt.bigInteger))
+      }
+      wbo.setModified(timestamp.bigDecimal)
     }
-
 
   }
 
@@ -749,7 +809,13 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
    */
   private object UserRequestHandler {
 
-    def handleRequest(request: HttpServletRequest, response: HttpServletResponse, path: String, timestamp: BigDecimal) {
+    def handleRequest(request: HttpServletRequest, response: HttpServletResponse, path: String, timestamp: BigDecimal, version: ProtocolVersion) {
+      if (version != ProtocolVersion_1_0) {
+        logger.debug("Version mismatch: Got version " + version)
+        WeaveErrors.errorUnsupportedVersion(response)
+        return
+      }
+
       val PathMatcher = "^/([^/]+)(?:/(.*))?$".r
       val PathMatcher(username, command) = path;
 
@@ -876,7 +942,13 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
    */
   private object MiscRequestHandler {
 
-    def handleRequest(request: HttpServletRequest, response: HttpServletResponse, path: String, timestamp: BigDecimal) {
+    def handleRequest(request: HttpServletRequest, response: HttpServletResponse, path: String, timestamp: BigDecimal, version: ProtocolVersion) {
+      if (version != ProtocolVersion_1_0) {
+        logger.debug("Version mismatch: Got version " + version)
+        WeaveErrors.errorUnsupportedVersion(response)
+        return
+      }
+
       path match {
         case "/captcha_html" => {
           response.setContentType("text/html")

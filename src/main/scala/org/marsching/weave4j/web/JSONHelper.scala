@@ -25,6 +25,7 @@ import org.marsching.weave4j.dbo.WeaveBasicObject
 import org.codehaus.jackson.map.{JsonMappingException, ObjectMapper}
 import org.codehaus.jackson.node.{TextNode, ObjectNode, ArrayNode}
 import org.slf4j.LoggerFactory
+import org.codehaus.jackson.node.BigIntegerNode
 
 /**
  * Utility functions for writing JSON to a HTTP response and reading JSON from HTTP requests.
@@ -191,7 +192,7 @@ object JSONHelper {
    *
    * @param wbo Weave Basic Object to be serialized
    */
-  def weaveBasicObjectToJSON(wbo: WeaveBasicObject): JsonNode = {
+  def weaveBasicObjectToJSON(wbo: WeaveBasicObject, includeTtl: Boolean, timestamp: BigDecimal): JsonNode = {
     val root = createJSONObjectNode
     root.put("id", wbo.getId())
     val parentId = wbo.getParentId()
@@ -207,6 +208,11 @@ object JSONHelper {
     val payload = wbo.getPayload()
     if (payload != null)
       root.put("payload", payload)
+    val ttl = wbo.getTtl()
+    if (ttl != null && includeTtl) {
+      val timestampInt = timestamp.toBigInt.bigInteger
+      root.put("ttl", new BigIntegerNode(ttl.subtract(timestampInt)))
+    }
     return root
   }
 
