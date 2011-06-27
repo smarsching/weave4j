@@ -1,6 +1,6 @@
 /*
  * weave4j - Weave Server for Java
- * Copyright (C) 2010  Sebastian Marsching
+ * Copyright (C) 2010-2011  Sebastian Marsching
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as 
@@ -16,9 +16,15 @@
  */
 package org.marsching.weave4j.dbo;
 
+import java.util.Collection;
+import java.util.List;
+import java.util.regex.Pattern;
+
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
+import org.marsching.weave4j.dbo.exception.InvalidPasswordException;
 import org.marsching.weave4j.dbo.exception.InvalidUserException;
+import org.marsching.weave4j.dbo.exception.InvalidUsernameException;
 
 /**
  * Implementation of {@link org.marsching.weave4j.dbo.WeaveUserDAO}.
@@ -27,8 +33,21 @@ import org.marsching.weave4j.dbo.exception.InvalidUserException;
  */
 public class WeaveUserDAOImpl implements WeaveUserDAO {
     private SessionFactory sessionFactory;
+    private final static Pattern usernamePattern = Pattern.compile("[A-Za-z0-9]+[A-Za-z0-9._-]*");
+
+    private void checkPassword(String password) {
+        if (password.length() < 6) {
+            throw new InvalidPasswordException("Specified password is shorter than 6 characters.");
+        }
+    }
 
     public void createUser(String username, String password, String eMail) {
+        if (!usernamePattern.matcher(username).matches()) {
+            throw new InvalidUsernameException("Invalid username: \"" + username + "\"");
+        }
+        password = password.trim();
+        checkPassword(password);
+
         Session session = sessionFactory.getCurrentSession();
         WeaveUser user = new WeaveUser();
         user.setUsername(username);
@@ -40,6 +59,12 @@ public class WeaveUserDAOImpl implements WeaveUserDAO {
 
     public WeaveUser findUser(String username) {
         return (WeaveUser) sessionFactory.getCurrentSession().createQuery("from WeaveUser user where user.username = ?").setString(0, username).uniqueResult();
+    }
+
+    public Collection<WeaveUser> getUsers() {
+        @SuppressWarnings("unchecked")
+        List<WeaveUser> list = sessionFactory.getCurrentSession().createCriteria(WeaveUser.class).list();
+        return list;
     }
 
     public void deleteUser(String username) {
@@ -57,6 +82,8 @@ public class WeaveUserDAOImpl implements WeaveUserDAO {
         if (user == null) {
             throw new InvalidUserException("WeaveUser \"" + username + "\" not found");
         }
+        newPassword = newPassword.trim();
+        checkPassword(newPassword);
         user.setPassword(newPassword);
         sessionFactory.getCurrentSession().update(user);
     }

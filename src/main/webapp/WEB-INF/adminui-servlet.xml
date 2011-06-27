@@ -13,14 +13,31 @@
     http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc-3.0.xsd
   ">
 
-  <context:property-override location="WEB-INF/local-config.properties" ignore-unresolvable="false" />
+  <context:property-override location="WEB-INF/local-config.properties" ignore-unresolvable="true" />
 
-  <bean name="weaveHttpRequestHandler" class="org.marsching.weave4j.web.WeaveHttpRequestHandler">
+  <bean name="handlerMapping" class="org.springframework.web.servlet.handler.BeanNameUrlHandlerMapping">
+    <property name="interceptors">
+      <list>
+        <ref bean="adminAuthenticationInterceptor"/>
+      </list>
+    </property>
+  </bean>
+
+  <bean name="adminAuthenticationInterceptor" class="org.marsching.weave4j.web.adminui.AdminAuthenticationInterceptor">
+    <property name="username" value="admin"></property>
+    <property name="passwordHash" value=""></property>
+  </bean>
+
+  <bean id="viewResolver" class="org.springframework.web.servlet.view.UrlBasedViewResolver">
+    <property name="viewClass" value="org.springframework.web.servlet.view.JstlView"/>
+    <property name="prefix" value="/WEB-INF/jsp/adminui/"/>
+    <property name="suffix" value=".jsp"/>
+  </bean>
+
+  <bean name="/*" class="org.marsching.weave4j.web.adminui.AdminController">
     <property name="userDAO" ref="userDAO" />
     <property name="storageDAO" ref="storageDAO" />
     <property name="transactionManager" ref="transactionManager" />
-    <property name="allowUserRegistration" value="true" />
   </bean>
-  <alias name="weaveHttpRequestHandler" alias="/*"/>
 
 </beans>

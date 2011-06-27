@@ -1,6 +1,6 @@
 /*
  * weave4j - Weave Server for Java
- * Copyright (C) 2010  Sebastian Marsching
+ * Copyright (C) 2010-2011  Sebastian Marsching
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as 
@@ -17,11 +17,9 @@
 package org.marsching.weave4j.dbo.exception;
 
 /**
- * Created by IntelliJ IDEA.
- * WeaveUser: termi
- * Date: 24.01.2010
- * Time: 17:05:21
- * To change this template use File | Settings | File Templates.
+ * Base class for all exceptions thrown by the DAO layer.
+ * 
+ * @author Sebastian Marsching
  */
 public class DAOException extends RuntimeException {
     /**

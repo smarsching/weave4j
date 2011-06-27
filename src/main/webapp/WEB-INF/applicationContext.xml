@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans
+        xmlns="http://www.springframework.org/schema/beans"
+        xmlns:aop="http://www.springframework.org/schema/aop"
+        xmlns:context="http://www.springframework.org/schema/context"
+        xmlns:mvc="http://www.springframework.org/schema/mvc"
+        xmlns:util="http://www.springframework.org/schema/util"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="
+    http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+    http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-3.0.xsd
+    http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-3.0.xsd
+    http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc-3.0.xsd
+  ">
+
+  <context:property-override location="WEB-INF/local-config.properties"  ignore-unresolvable="true" />
+
+  <bean name="jdbcUrlProvider" class="org.marsching.weave4j.web.JdbcUrlProvider">
+    <property name="databaseLocation" value="WEB-INF/weave4j-database" />
+  </bean>
+
+  <bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource" destroy-method="close">
+    <property name="driverClassName" value="org.hsqldb.jdbcDriver"/>
+    <property name="url">
+      <bean factory-bean="jdbcUrlProvider" factory-method="getJdbcUrl"/>
+    </property>
+    <property name="username" value="sa"/>
+    <property name="password" value=""/>
+  </bean>
+
+  <bean name="sessionFactory" class="org.springframework.orm.hibernate3.LocalSessionFactoryBean">
+    <property name="dataSource" ref="dataSource"/>
+    <property name="configLocations">
+      <list>
+        <value>classpath:hibernate.cfg.xml</value>
+      </list>
+    </property>
+    <property name="hibernateProperties">
+      <value>
+        hibernate.dialect=org.hibernate.dialect.HSQLDialect
+        hibernate.hbm2ddl.auto=update
+        hibernate.show_sql=false
+      </value>
+    </property>
+  </bean>
+
+  <bean name="platformTransactionManager" class="org.springframework.orm.hibernate3.HibernateTransactionManager">
+    <property name="sessionFactory" ref="sessionFactory"/>
+  </bean>
+
+  <bean name="transactionManager" class="org.marsching.weave4j.web.TransactionManager">
+    <property name="platformTransactionManager" ref="platformTransactionManager" />
+  </bean>
+
+  <bean name="userDAO" class="org.marsching.weave4j.dbo.WeaveUserDAOImpl">
+    <property name="sessionFactory" ref="sessionFactory"/>
+  </bean>
+
+  <bean name="storageDAO" class="org.marsching.weave4j.dbo.WeaveStorageDAOImpl">
+    <property name="sessionFactory" ref="sessionFactory"/>
+  </bean>
+
+</beans>

@@ -1,6 +1,6 @@
 /*
  * weave4j - Weave Server for Java
- * Copyright (C) 2010  Sebastian Marsching
+ * Copyright (C) 2010-2011  Sebastian Marsching
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as 
@@ -15,6 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.marsching.weave4j.dbo;
+
+import java.util.Collection;
 
 /**
  * Provides methods to access the users stored in the database.
@@ -39,6 +41,13 @@ public interface WeaveUserDAO {
      * @return Weave user or <code>null</code> if no user is found for the given username
      */
     WeaveUser findUser(String username);
+
+    /**
+     * Returns all users in the database.
+     * 
+     * @return all users in the database
+     */
+    Collection<? extends WeaveUser> getUsers();
 
     /**
      * Deletes a user from the database.

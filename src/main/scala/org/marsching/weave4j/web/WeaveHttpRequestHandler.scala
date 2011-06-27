@@ -1,6 +1,6 @@
 /*
  * weave4j - Weave Server for Java
- * Copyright (C) 2010  Sebastian Marsching
+ * Copyright (C) 2010-2011  Sebastian Marsching
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as 
@@ -14,6 +14,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 package org.marsching.weave4j.web
 
 import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
@@ -30,6 +31,8 @@ import org.springframework.transaction.{PlatformTransactionManager, TransactionD
 import org.springframework.web.HttpRequestHandler
 import scala.collection.JavaConversions._
 import org.codehaus.jackson.node.NullNode
+import org.marsching.weave4j.dbo.exception.InvalidUsernameException
+import org.marsching.weave4j.dbo.exception.InvalidPasswordException
 
 /**
  * Handler for Weave HTTP requests.
@@ -55,7 +58,7 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
   protected val HeaderConfirmDelete = "X-Confirm-Delete"
 
   /**
-   * DAO fo accessing user objects.
+   * DAO for accessing user objects.
    */
   protected var userDAO: WeaveUserDAO = null
 
@@ -65,9 +68,14 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
   protected var storageDAO: WeaveStorageDAO = null
 
   /**
-   * Spring platform transaction manager for managing database transactions.
+   * Transaction manager for managing database transactions.
    */
-  protected var platformTransactionManager: PlatformTransactionManager = null
+  protected var transactionManager: TransactionManager = null
+
+  /**
+   * Allow new users to register.
+   */
+  protected var allowUserRegistration: Boolean = true
 
   /**
    * Logger for this class.
@@ -94,7 +102,11 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
     val timestamp = WeaveTimestamps.currentTime
     response.addHeader(HeaderTimestamp, timestamp.bigDecimal.toPlainString);
 
-    val pathInfo = request.getPathInfo();
+    val pathInfo =
+      if (request.getPathInfo == null)
+        request.getServletPath
+      else
+        request.getServletPath + request.getPathInfo
     val PathMatcher = "^(?:/([^/]+))?/(\\d+(?:\\.\\d+)?)(/.+)$".r
     try {
       val PathMatcher(apiName, version, command) = pathInfo
@@ -143,88 +155,41 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
    * @throws AbortRequestHandlingException if user cannot be authenticated
    */
   protected def tryLoginUser(request: HttpServletRequest, response: HttpServletResponse, pathUsername: String): WeaveUser = {
-    val authHeader = request.getHeader("Authorization")
-    if (authHeader == null) {
-      WeaveErrors.errorHttpUnauthorized(response)
-      throw new AbortRequestHandlingException
-    }
-    val AuthHeaderMatcher = "^\\s*Basic\\s+([A-Za-z0-9+/]+={0,2})\\s*$".r
-    try {
-      val AuthHeaderMatcher(base64Encoded) = authHeader
-      val base64Decoded = new String(Base64.decodeBase64(base64Encoded), "utf-8")
-      val UsernamePasswordMatcher = "^(.*):(.*)$".r
-      val UsernamePasswordMatcher(username, password) = base64Decoded
-      val user =
-        withReadOnlyTransaction {
-          userDAO.findUser(username);
+    AuthenticationHelper.extractAuthenticationInfo(request) match {
+      case Some((username, password)) => {
+        val user =
+          transactionManager.withReadOnlyTransaction {
+            userDAO.findUser(username);
+          }
+        if (user == null || !PasswordHelper.validatePasswordSSHA(password, user.getPassword())) {
+          WeaveErrors.errorHttpUnauthorized(response)
+          throw new AbortRequestHandlingException
         }
-      if (user == null) {
-        WeaveErrors.errorHttpUnauthorized(response)
-        throw new AbortRequestHandlingException
-      }
-      if (PasswordHelper.validatePasswordSSHA(password, user.getPassword())) {
         if (!username.equalsIgnoreCase(pathUsername)) {
           WeaveErrors.errorUserIdDoesNotMatchAccountInPath(response)
           throw new AbortRequestHandlingException
-        } else {
-          return user
         }
-      } else {
-        WeaveErrors.errorHttpUnauthorized(response)
-        throw new AbortRequestHandlingException
+        user
       }
-    } catch {
-      case e: MatchError => {
+      case None => {
         WeaveErrors.errorHttpUnauthorized(response)
         throw new AbortRequestHandlingException
       }
     }
   }
 
-  /**
-   * Performs an action within a read/write database transaction.
-   *
-   * @param f action to perform within transaction
-   * @return result of <code>f</code>
-   */
-  protected def withReadWriteTransaction[T](f: => T): T = {
-    withTransaction(false)(f)
+  private def readRequestBody(request: HttpServletRequest): String = {
+    var charArray: Array[Char] = new Array(1024)
+    var charsRead = 0
+    val sb = new StringBuilder
+    val reader = request.getReader
+    do {
+      charsRead = reader.read(charArray, 0, 1024)
+      if (charsRead > 0)
+        sb.appendAll(charArray, 0, charsRead)
+    } while (charsRead >= 0)
+    sb.toString
   }
-
-  /**
-   * Performs an action within a read-only database transaction.
-   *
-   * @param f action to perform within transaction
-   * @return result of <code>f</code>
-   */
-  protected def withReadOnlyTransaction[T](f: => T): T = {
-    withTransaction(true)(f)
-  }
-
-  /**
-   * Performs an action within a database transaction.
-   *
-   * @param readOnly if set to <code>true</code>, a read-only transaction will be started
-   * @param f action to perform within transaction
-   * @return result of <code>f</code>
-   */
-  protected def withTransaction[T](readOnly: Boolean)(f: => T): T = {
-    val transactionDefinition = new DefaultTransactionDefinition()
-    transactionDefinition.setPropagationBehavior(TransactionDefinition.PROPAGATION_NEVER)
-    transactionDefinition.setIsolationLevel(TransactionDefinition.ISOLATION_SERIALIZABLE)
-    transactionDefinition.setReadOnly(readOnly)
-    val transactionStatus = platformTransactionManager.getTransaction(transactionDefinition)
-    try {
-      val result: T = f
-      platformTransactionManager.commit(transactionStatus)
-      return result
-    } finally {
-      if (!transactionStatus.isCompleted()) {
-        platformTransactionManager.rollback(transactionStatus)
-      }
-    }
-  }
-
   /**
    * Sets the DAO used to access user objects.
    *
@@ -244,12 +209,24 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
   }
 
   /**
-   * Sets the Spring platform transaction manager, used to manager transactions.
+   * Sets the transaction manager, used to manage transactions.
    *
-   * @param platformTransactionManager transaction manager
+   * @param transactionManager transaction manager
    */
-  def setPlatformTransactionManager(platformTransactionManager: PlatformTransactionManager) = {
-    this.platformTransactionManager = platformTransactionManager
+  def setTransactionManager(transactionManager: TransactionManager) = {
+    this.transactionManager = transactionManager
+  }
+
+  /**
+   * Enables or disables the automatic user registration.
+   * 
+   * @param allowUserRegistration if <code>true</code>, new users
+   *    can register, if <code>false</code>, new users can only
+   *    be created using the administrative interface.
+   * 
+   */
+  def setAllowUserRegistration(allowUserRegistration: Boolean) {
+    this.allowUserRegistration = allowUserRegistration
   }
 
   /**
@@ -271,7 +248,7 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
     }
 
     def handleInfoCommand(request: HttpServletRequest, response: HttpServletResponse, username: String, path: String, timestamp: BigDecimal, version: ProtocolVersion) {
-      withReadOnlyTransaction {
+      transactionManager.withReadOnlyTransaction {
         val timestampInt = timestamp.toBigInt.bigInteger
         val user = tryLoginUser(request, response, username)
         if (request.getMethod() != "GET") {
@@ -322,6 +299,7 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
             array.add(size)
             // We do not have support for quotas yet.
             array.add(NullNode.instance)
+            JSONHelper.writeJSON(request, response, array)
           }
         }
       }
@@ -340,7 +318,7 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
 
       request.getMethod() match {
         case "GET" => {
-          withReadOnlyTransaction {
+          transactionManager.withReadOnlyTransaction {
             val user = tryLoginUser(request, response, username)
 
             val includeTtl = version == ProtocolVersion_1_1
@@ -447,7 +425,7 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
         }
 
         case "DELETE" => {
-          withReadWriteTransaction {
+          transactionManager.withReadWriteTransaction {
             val user = tryLoginUser(request, response, username)
 
             // Clean-up expired WBOs
@@ -561,7 +539,7 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
         }
 
         case "POST" => {
-          withReadWriteTransaction {
+          transactionManager.withReadWriteTransaction {
             val user = tryLoginUser(request, response, username)
 
             // Clean-up expired WBOs
@@ -647,7 +625,7 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
         }
 
         case "PUT" => {
-          withReadWriteTransaction {
+          transactionManager.withReadWriteTransaction {
             val user = tryLoginUser(request, response, username)
 
             // Clean-up expired WBOs
@@ -821,7 +799,7 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
 
       request.getMethod() match {
         case "DELETE" => {
-          withReadWriteTransaction {
+          transactionManager.withReadWriteTransaction {
             val user = tryLoginUser(request, response, username)
 
             if (command != null) {
@@ -834,7 +812,7 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
         }
 
         case "GET" => {
-          withReadOnlyTransaction {
+          transactionManager.withReadOnlyTransaction {
             command match {
               case null => {
                 if (userDAO.findUser(username) != null) {
@@ -861,30 +839,26 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
         }
 
         case "POST" => {
-          withReadWriteTransaction {
+          transactionManager.withReadWriteTransaction {
             val user = tryLoginUser(request, response, username)
 
             command match {
               case "email" => {
-                val json = JSONHelper.readJSON(request)
-                if (!json.isTextual()) {
-                  WeaveErrors.errorJSONParseFailure(response)
-                  return
-                }
-                val eMail = json.getTextValue()
+                val eMail = readRequestBody(request).trim
                 userDAO.updateEMail(user.getUsername(), eMail)
                 JSONHelper.writeJSON(request, response, eMail)
               }
 
               case "password" => {
-                val json = JSONHelper.readJSON(request)
-                if (!json.isTextual()) {
-                  WeaveErrors.errorJSONParseFailure(response)
-                  return
+                val password = readRequestBody(request).trim
+                try {
+                  userDAO.updatePassword(user.getUsername(), PasswordHelper.cryptPasswordSSHA(password))
+                  JSONHelper.writeJSON(request, response, "success")
+                } catch {
+                  case e: InvalidPasswordException => {
+                    WeaveErrors.errorRequestedPasswordNotStrongEnough(response)
+                  }
                 }
-                val password = json.getTextValue()
-                userDAO.updatePassword(user.getUsername(), PasswordHelper.cryptPasswordSSHA(password))
-                JSONHelper.writeJSON(request, response, "success")
               }
 
               case _ => {
@@ -895,9 +869,14 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
         }
 
         case "PUT" => {
-          withReadWriteTransaction {
+          transactionManager.withReadWriteTransaction {
             if (command != null) {
               WeaveErrors.errorBadProtocol(response)
+              return
+            }
+
+            if (!allowUserRegistration) {
+              WeaveErrors.errorUnsupportedFunction(response)
               return
             }
 
@@ -923,6 +902,14 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
             } catch {
               case e: JsonProcessingException => {
                 WeaveErrors.errorJSONParseFailure(response)
+                return
+              }
+              case e: InvalidUsernameException => {
+                WeaveErrors.errorInvalidOrMissingUsername(response)
+                return
+              }
+              case e: InvalidPasswordException => {
+                WeaveErrors.errorRequestedPasswordNotStrongEnough(response)
                 return
               }
             }

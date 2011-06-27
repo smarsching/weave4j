@@ -1,6 +1,6 @@
 /*
  * weave4j - Weave Server for Java
- * Copyright (C) 2010-2011  Sebastian Marsching
+ * Copyright (C) 2011  Sebastian Marsching
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as 
@@ -17,29 +17,30 @@
 package org.marsching.weave4j.dbo.exception;
 
 /**
- * Exception thrown by DAO layer, when the name of a non-existing user
- * is passed to a method.
+ * Exception thrown by the DAO layer, when a try to create a user with an
+ * invalid password or to change a user's password to an inalid password is
+ * detected.
  * 
  * @author Sebastian Marsching
  */
-public class InvalidUserException extends DAOException {
+public class InvalidPasswordException extends DAOException {
     /**
 	 * Serial version UID. Generated automatically.
 	 */
 	private static final long serialVersionUID = -7537218497096385829L;
 
-	public InvalidUserException() {
+	public InvalidPasswordException() {
     }
 
-    public InvalidUserException(String message) {
+    public InvalidPasswordException(String message) {
         super(message);
     }
 
-    public InvalidUserException(String message, Throwable cause) {
+    public InvalidPasswordException(String message, Throwable cause) {
         super(message, cause);
     }
 
-    public InvalidUserException(Throwable cause) {
+    public InvalidPasswordException(Throwable cause) {
         super(cause);
     }
 }
