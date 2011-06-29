@@ -31,6 +31,7 @@ import org.marsching.weave4j.dbo.WeaveStorageDAO
 import java.security.MessageDigest
 import org.apache.commons.codec.binary.Base32
 import org.apache.commons.codec.binary.Base32
+import org.springframework.web.servlet.view.RedirectView
 
 /**
  * Handles the HTTP requests for the administative interface.
@@ -61,6 +62,11 @@ class AdminController {
       mav.addObject("users", users)
       mav
     }
+  }
+
+  @RequestMapping(value = Array("/adminui"), method = Array(RequestMethod.GET))
+  def indexRedirect(): RedirectView = {
+    new RedirectView("/adminui/", true, true)
   }
 
   private def encodeUsername(username: String): String = {
