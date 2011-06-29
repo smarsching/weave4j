@@ -38,6 +38,16 @@ object WeaveErrors {
   }
 
   /**
+   * Notifies the client that no captcha information was passed or the
+   * passed captcha information was not correct.
+   *
+   * @param response HTTP response
+   */
+  def errorIncorrectOrMissingCaptcha(response: HttpServletResponse) {
+    errorWeaveBadRequest(response, 2)
+  }
+
+  /**
    * Notifies the client that no username was specified or the specified
    * username is invalid.
    *
@@ -121,7 +131,9 @@ object WeaveErrors {
   protected def errorWeaveBadRequest(response: HttpServletResponse, weaveErrorCode: Int) {
     response.setContentType("application/json")
     response.setStatus(HttpServletResponse.SC_BAD_REQUEST)
-    response.getWriter.println(weaveErrorCode)
+    // We do not use println here because Firefox Sync obviously cannot handle
+    // a response with white-space correctly.
+    response.getWriter.print(weaveErrorCode)
   }
 
   /**

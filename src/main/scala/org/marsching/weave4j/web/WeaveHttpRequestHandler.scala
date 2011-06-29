@@ -78,6 +78,22 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
   protected var allowUserRegistration: Boolean = true
 
   /**
+   * Enable captchas. If this is enabled, the reCAPTCHA private and public
+   * keys have to be set as well.
+   */
+  protected var enableCaptchas: Boolean = false
+
+  /**
+   * reCAPTCHA private key
+   */
+  protected var recaptchaPrivateKey: String = ""
+
+  /**
+   * reCAPTCHA public key
+   */
+  protected var recaptchaPublicKey: String = ""
+
+  /**
    * Logger for this class.
    */
   protected val logger = LoggerFactory.getLogger(this.getClass)
@@ -227,6 +243,38 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
    */
   def setAllowUserRegistration(allowUserRegistration: Boolean) {
     this.allowUserRegistration = allowUserRegistration
+  }
+
+  /**
+   * Enables or disables the automatic user registration.
+   * 
+   * @param enableCaptchase if <code>true</code>, new users
+   *    have to solve a captcha in order to register, if <code>false</code>, 
+   *    new users can register without a captcha.
+   * 
+   */
+  def setEnableCaptchas(enableCaptchas: Boolean) {
+    this.enableCaptchas = enableCaptchas
+  }
+
+  /**
+   * Sets the private key for the reCAPTCHA service.
+   * This has to be set if captchas are enabled.
+   * 
+   * @param recaptchaPrivateKey private key for reCAPTCHA
+   */
+  def setRecaptchaPrivateKey(recaptchaPrivateKey: String) {
+    this.recaptchaPrivateKey = recaptchaPrivateKey
+  }
+
+  /**
+   * Sets the public key for the reCAPTCHA service.
+   * This has to be set if captchas are enabled.
+   * 
+   * @param recaptchaPublicKey public key for reCAPTCHA
+   */
+  def setRecaptchaPublicKey(recaptchaPublicKey: String) {
+    this.recaptchaPublicKey = recaptchaPublicKey
   }
 
   /**
@@ -897,6 +945,17 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
                 WeaveErrors.errorOverwriteNotAllowed(response)
                 return
               }
+              if (enableCaptchas) {
+                val captchaChallenge = root.get("captcha-challenge")
+                val captchaResponse = root.get("captcha-response")
+                if (captchaChallenge == null || captchaResponse == null ||
+                    !captchaChallenge.isTextual || !captchaResponse.isTextual ||
+                    !RecaptchaHelper.validateCaptcha(recaptchaPrivateKey, request.getRemoteAddr, captchaChallenge.getTextValue, captchaResponse.getTextValue)) {
+                  WeaveErrors.errorIncorrectOrMissingCaptcha(response)
+                  return
+                }
+                
+              }
               userDAO.createUser(username, PasswordHelper.cryptPasswordSSHA(password.getTextValue()), eMail.getTextValue())
               JSONHelper.writeJSON(request, response, username.toLowerCase)
             } catch {
@@ -938,9 +997,14 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
 
       path match {
         case "/captcha_html" => {
-          response.setStatus(HttpServletResponse.SC_NOT_FOUND)
-          response.setContentType("text/html")
-          response.getWriter().print("""<body>No captcha required.<input type="hidden" name="recaptcha_challenge_field" id="recaptcha_challenge_field" value="nocaptcha"><input type="hidden" name="recaptcha_response_field" id="recaptcha_response_field" value="nocaptcha"></body>""");
+          if (enableCaptchas) {
+            response.setContentType("text/html")
+            response.getWriter.print("""<body><div id="content"><script>var RecaptchaOptions = {theme: "clean"};</script><div style="background-color: system;"><form action="""" + request.getContextPath + """/misc/1.0/captcha_html" method="POST"><script type="text/javascript" src="https://www.google.com/recaptcha/api/challenge?k=""" + recaptchaPublicKey + """"></script><noscript><iframe src="https://www.google.com/recaptcha/api/noscript?k=""" + recaptchaPublicKey + """" height="300" width="500" frameborder="0"></iframe><br><textarea name="recaptcha_challenge_field" rows="3" cols="40"></textarea><input type="hidden" name="recaptcha_response_field" value="manual_challenge"></noscript></form></div></div></body>""")
+          } else {
+            response.setStatus(HttpServletResponse.SC_NOT_FOUND)
+            response.setContentType("text/html")
+            response.getWriter().print("""<body>No captcha required.<input type="hidden" name="recaptcha_challenge_field" id="recaptcha_challenge_field" value="nocaptcha"><input type="hidden" name="recaptcha_response_field" id="recaptcha_response_field" value="nocaptcha"></body>""");
+          }
         }
 
         case _ => {
