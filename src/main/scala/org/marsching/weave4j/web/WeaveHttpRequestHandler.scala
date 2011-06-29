@@ -938,6 +938,7 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
 
       path match {
         case "/captcha_html" => {
+          response.setStatus(HttpServletResponse.SC_NOT_FOUND)
           response.setContentType("text/html")
           response.getWriter().print("""<body>No captcha required.<input type="hidden" name="recaptcha_challenge_field" id="recaptcha_challenge_field" value="nocaptcha"><input type="hidden" name="recaptcha_response_field" id="recaptcha_response_field" value="nocaptcha"></body>""");
         }
