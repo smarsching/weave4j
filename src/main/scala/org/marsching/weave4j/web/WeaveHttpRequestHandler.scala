@@ -112,6 +112,10 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
         request.getServletPath
       else
         request.getServletPath + request.getPathInfo
+    // Handle URL used by Firefox for password reset
+    if (pathInfo == "/weave-password-reset") {
+      response.sendRedirect(request.getContextPath + "/ui/resetPassword")
+    }
     val PathMatcher = "^(?:/([^/]+))?/(\\d+(?:\\.\\d+)?)(/.+)$".r
     try {
       val PathMatcher(apiName, version, command) = pathInfo
