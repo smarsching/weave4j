@@ -25,6 +25,7 @@ import org.hibernate.SessionFactory;
 import org.marsching.weave4j.dbo.exception.InvalidPasswordException;
 import org.marsching.weave4j.dbo.exception.InvalidUserException;
 import org.marsching.weave4j.dbo.exception.InvalidUsernameException;
+import org.marsching.weave4j.web.PasswordHelper;
 
 /**
  * Implementation of {@link org.marsching.weave4j.dbo.WeaveUserDAO}.
@@ -84,7 +85,7 @@ public class WeaveUserDAOImpl implements WeaveUserDAO {
         }
         newPassword = newPassword.trim();
         checkPassword(newPassword);
-        user.setPassword(newPassword);
+        user.setPassword(PasswordHelper.cryptPasswordSSHA(newPassword));
         sessionFactory.getCurrentSession().update(user);
     }
 

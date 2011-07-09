@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.servlet.ModelAndView
 import org.springframework.web.bind.annotation.RequestMethod
 import org.marsching.weave4j.web.TransactionManager
+import org.marsching.weave4j.web.UsernameHelper
 import org.marsching.weave4j.dbo.WeaveUserDAO
 import org.springframework.web.bind.annotation.RequestParam
 import org.marsching.weave4j.dbo.exception.InvalidUsernameException
@@ -69,21 +70,13 @@ class AdminController {
     new RedirectView("/adminui/", true, true)
   }
 
-  private def encodeUsername(username: String): String = {
-    val usernameBytes = username.getBytes("utf-8")
-    val md = MessageDigest.getInstance("SHA1")
-    val digestBytes = md.digest(usernameBytes)
-    val base32 = new Base32
-    new String(base32.encode(digestBytes), "utf-8").toLowerCase
-  }
-
   @RequestMapping(value = Array("/create/user"), method = Array(RequestMethod.POST))
   def createUser(@RequestParam("username") username: String, @RequestParam("email") email: String, @RequestParam("password") password: String): ModelAndView = {
     val useUsername =
       if (username.nonEmpty)
         username
       else
-        encodeUsername(email)
+        UsernameHelper.encodeUsername(email)
     try {
       transactionManager.withReadWriteTransaction {
         if (userDAO.findUser(useUsername) != null) {
@@ -95,7 +88,7 @@ class AdminController {
             new ModelAndView("createUserSuccess")
           } catch {
             case e: InvalidUsernameException => {
-              val newUsername = encodeUsername(useUsername)
+              val newUsername = UsernameHelper.encodeUsername(useUsername)
               if (userDAO.findUser(newUsername) != null) {
                 val mav = new ModelAndView("createUserFailure")
                 mav.addObject("reason", "username_already_in_use")
@@ -163,7 +156,7 @@ class AdminController {
         userDAO.updatePassword(username, password)
         new ModelAndView("changeUserPasswordSuccess")
       } catch {
-        case e: Throwable => {
+        case e: InvalidPasswordException => {
           val mav = new ModelAndView("changeUserPasswordFailure")
           mav.addObject("reason", "password")
         }

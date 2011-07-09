@@ -60,4 +60,7 @@
     <property name="sessionFactory" ref="sessionFactory"/>
   </bean>
 
+  <bean name="captchaSettings" class="org.marsching.weave4j.web.CaptchaSettings">
+    <property name="enableCaptchas" value="false" />
+  </bean>
 </beans>

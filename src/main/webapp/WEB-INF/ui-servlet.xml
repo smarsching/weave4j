@@ -15,13 +15,33 @@
 
   <context:property-override location="WEB-INF/local-config.properties" ignore-unresolvable="true" />
 
-  <bean name="weaveHttpRequestHandler" class="org.marsching.weave4j.web.WeaveHttpRequestHandler">
+  <bean id="viewResolver" class="org.springframework.web.servlet.view.UrlBasedViewResolver">
+    <property name="viewClass" value="org.springframework.web.servlet.view.JstlView"/>
+    <property name="prefix" value="/WEB-INF/jsp/ui/"/>
+    <property name="suffix" value=".jsp"/>
+  </bean>
+
+  <bean name="/*" class="org.marsching.weave4j.web.ui.UserController">
     <property name="captchaSettings" ref="captchaSettings" />
+    <property name="mailSender" ref="mailSender" />
+    <property name="mailVelocityEngine" ref="mailVelocityEngine" />
+    <property name="passwordResetTemplateMessage" ref="passwordResetTemplateMessage" />
     <property name="userDAO" ref="userDAO" />
     <property name="storageDAO" ref="storageDAO" />
     <property name="transactionManager" ref="transactionManager" />
-    <property name="allowUserRegistration" value="true" />
   </bean>
-  <alias name="weaveHttpRequestHandler" alias="/*"/>
+
+  <bean id="mailSender" class="org.springframework.mail.javamail.JavaMailSenderImpl">
+    <property name="host" value="localhost"/>
+  </bean>
+  
+  <bean id="passwordResetTemplateMessage" class="org.springframework.mail.SimpleMailMessage">
+    <property name="from" value="noreply@example.com"/>
+    <property name="subject" value="weave4j Password Reset Code"/>
+  </bean>
+
+  <bean id="mailVelocityEngine" class="org.springframework.ui.velocity.VelocityEngineFactoryBean">
+    <property name="resourceLoaderPath" value="/WEB-INF/velocity/mail/"/>
+  </bean>
 
 </beans>
