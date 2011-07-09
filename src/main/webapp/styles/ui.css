@@ -1,3 +1,7 @@
+body, p, h1, h2, table, th, td {
+  font-family: sans-serif, Arial, Helvetica;
+}
+
 table, th, td {
   border: 1px solid black;
 }
