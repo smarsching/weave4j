@@ -865,8 +865,6 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
                 } else {
                   response.setStatus(HttpServletResponse.SC_NOT_FOUND)
                 }
-                response.setStatus(HttpServletResponse.SC_NOT_FOUND)
-                JSONHelper.writeJSON(request, response, new TextNode("No location"))
               }
 
               case "password_reset" => {
