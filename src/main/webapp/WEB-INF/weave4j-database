@@ -1,0 +1,3 @@
+This is a dummy file that has to exist in or to resolve the resource path for
+the database. This file does not store any actual data. The actual data is
+stored in the weave4j-database.* files.
