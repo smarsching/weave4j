@@ -133,7 +133,7 @@ class UserController {
         mav.addObject("timestamp", timestamp)
         mav.addObject("challenge", challenge)
       } catch {
-        case _ => {
+        case _: Throwable => {
           val mav = new ModelAndView("resetPasswordFailure")
           mav.addObject("reason", "sendMail")
         }
