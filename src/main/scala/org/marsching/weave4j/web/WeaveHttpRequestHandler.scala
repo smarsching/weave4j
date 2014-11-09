@@ -33,6 +33,7 @@ import scala.collection.JavaConversions._
 import org.codehaus.jackson.node.NullNode
 import org.marsching.weave4j.dbo.exception.InvalidUsernameException
 import org.marsching.weave4j.dbo.exception.InvalidPasswordException
+import scala.collection.mutable.StringBuilder
 
 /**
  * Handler for Weave HTTP requests.
@@ -199,6 +200,23 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
     } while (charsRead >= 0)
     sb.toString
   }
+
+  private def extractServiceURL(request: HttpServletRequest): String = {
+    val sb = new StringBuilder
+    val scheme = request.getScheme
+    sb.append(scheme)
+    sb.append("://")
+    sb.append(request.getServerName)
+    val port = request.getServerPort
+    if ((scheme == "http" && port != 80) || (scheme == "https" && port != 443)) {
+      sb.append(":")
+      sb.append(port)
+    }
+    sb.append(request.getContextPath())
+    sb.append("/")
+    sb.toString
+  }
+
   /**
    * Sets the DAO used to access user objects.
    *
@@ -842,6 +860,11 @@ class WeaveHttpRequestHandler extends HttpRequestHandler {
               }
 
               case "node/weave" => {
+                if (userDAO.findUser(username) != null) {
+                  response.getWriter().write(extractServiceURL(request))
+                } else {
+                  response.setStatus(HttpServletResponse.SC_NOT_FOUND)
+                }
                 response.setStatus(HttpServletResponse.SC_NOT_FOUND)
                 JSONHelper.writeJSON(request, response, new TextNode("No location"))
               }
